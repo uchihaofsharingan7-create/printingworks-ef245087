@@ -62,3 +62,12 @@ export function getPrinterLabel(printer: PrinterType) {
 export function getFilamentLabel(filament: FilamentType) {
   return FILAMENTS[filament].name;
 }
+
+export function completeJob(id: string): void {
+  queue = queue.filter((item) => item.id !== id);
+  // Promote next queued item to printing
+  const nextQueued = queue.find((item) => item.status === 'queued');
+  if (nextQueued && !queue.some((item) => item.status === 'printing')) {
+    nextQueued.status = 'printing';
+  }
+}
