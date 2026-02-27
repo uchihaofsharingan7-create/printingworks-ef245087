@@ -1,12 +1,13 @@
 import { QueueItem, getPrinterLabel, getFilamentLabel } from '@/lib/queue';
 import { cn } from '@/lib/utils';
-import { Loader2, Clock, CheckCircle2 } from 'lucide-react';
+import { Loader2, CheckCircle2, Trash2 } from 'lucide-react';
 
 interface PrintQueueProps {
   queue: QueueItem[];
+  onComplete?: (id: string) => void;
 }
 
-export function PrintQueue({ queue }: PrintQueueProps) {
+export function PrintQueue({ queue, onComplete }: PrintQueueProps) {
   if (queue.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-card p-8 text-center">
@@ -21,26 +22,20 @@ export function PrintQueue({ queue }: PrintQueueProps) {
         <div
           key={item.id}
           className={cn(
-            'flex items-center gap-4 rounded-lg border p-4 transition-all',
+            'flex items-center gap-3 rounded-lg border p-4 transition-all',
             item.status === 'printing'
               ? 'border-primary/40 bg-primary/5 glow-primary'
-              : item.status === 'done'
-              ? 'border-success/30 bg-success/5 opacity-60'
               : 'border-border bg-card'
           )}
         >
           <div className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold font-mono',
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold font-mono',
             item.status === 'printing'
               ? 'bg-primary/20 text-primary'
-              : item.status === 'done'
-              ? 'bg-success/20 text-success'
               : 'bg-secondary text-muted-foreground'
           )}>
             {item.status === 'printing' ? (
               <Loader2 className="h-4 w-4 animate-spin" />
-            ) : item.status === 'done' ? (
-              <CheckCircle2 className="h-4 w-4" />
             ) : (
               i + 1
             )}
@@ -53,15 +48,25 @@ export function PrintQueue({ queue }: PrintQueueProps) {
             </p>
           </div>
 
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <p className="text-sm font-mono font-semibold text-foreground">${item.cost.toFixed(2)}</p>
             <p className={cn(
               'text-xs font-medium',
-              item.status === 'printing' ? 'text-primary' : item.status === 'done' ? 'text-success' : 'text-muted-foreground'
+              item.status === 'printing' ? 'text-primary' : 'text-muted-foreground'
             )}>
-              {item.status === 'printing' ? 'Printing' : item.status === 'done' ? 'Complete' : 'Queued'}
+              {item.status === 'printing' ? 'Printing' : 'Queued'}
             </p>
           </div>
+
+          {onComplete && (
+            <button
+              onClick={() => onComplete(item.id)}
+              className="shrink-0 rounded-md border border-border bg-secondary p-1.5 text-muted-foreground hover:text-success hover:border-success/40 transition-colors"
+              title="Complete & remove"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       ))}
     </div>

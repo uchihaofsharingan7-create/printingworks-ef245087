@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { PrinterType, FilamentType, PRINTERS } from '@/lib/pricing';
-import { getQueue, QueueItem } from '@/lib/queue';
+import { getQueue, completeJob, QueueItem } from '@/lib/queue';
 import { PrinterCard } from '@/components/PrinterCard';
 import { FilamentSelector } from '@/components/FilamentSelector';
 import { StlUploader } from '@/components/StlUploader';
@@ -26,6 +26,11 @@ const Index = () => {
     setFilament(null);
     setTimeMinutes(0);
     setGrams(0);
+  }, []);
+
+  const handleComplete = useCallback((id: string) => {
+    completeJob(id);
+    setQueue(getQueue());
   }, []);
 
   return (
@@ -94,7 +99,7 @@ const Index = () => {
                 <h2 className="text-sm font-semibold text-foreground">Print Queue</h2>
                 <span className="ml-auto text-[11px] font-mono text-muted-foreground">{queue.length} jobs</span>
               </div>
-              <PrintQueue queue={queue} />
+              <PrintQueue queue={queue} onComplete={handleComplete} />
             </div>
           </div>
         </div>
