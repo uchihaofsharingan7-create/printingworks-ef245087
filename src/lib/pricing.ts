@@ -2,7 +2,7 @@ export type PrinterType = 'ender3pro' | 'adventure5m' | 'adventure4';
 export type FilamentType = 'pla' | 'petg';
 
 export const PRINTERS: Record<PrinterType, { name: string; description: string }> = {
-  ender3pro: { name: 'Ender 3 Pro', description: 'Reliable workhorse · 220×220×250mm build volume' },
+  ender3pro: { name: 'Ender 3 Pro', description: 'Most Affordable · 220×220×250mm build volume' },
   adventure5m: { name: 'Adventure 5M Pro', description: 'High-speed printing · 220×220×220mm build volume' },
   adventure4: { name: 'Adventure 4 Pro', description: 'Industrial grade · 220×220×250mm build volume' },
 };
