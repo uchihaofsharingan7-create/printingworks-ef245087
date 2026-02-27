@@ -3,7 +3,7 @@ import { PrinterType, FilamentType, PRINTERS } from '@/lib/pricing';
 import { getQueue, QueueItem } from '@/lib/queue';
 import { PrinterCard } from '@/components/PrinterCard';
 import { FilamentSelector } from '@/components/FilamentSelector';
-import { PriceEstimator } from '@/components/PriceEstimator';
+import { StlUploader } from '@/components/StlUploader';
 import { OrderForm } from '@/components/OrderForm';
 import { PrintQueue } from '@/components/PrintQueue';
 import { Layers, ListOrdered } from 'lucide-react';
@@ -15,6 +15,11 @@ const Index = () => {
   const [grams, setGrams] = useState(0);
   const [queue, setQueue] = useState<QueueItem[]>(getQueue());
 
+  const handleEstimate = useCallback((time: number, g: number) => {
+    setTimeMinutes(time);
+    setGrams(g);
+  }, []);
+
   const handleOrderPlaced = useCallback(() => {
     setQueue(getQueue());
     setPrinter(null);
@@ -25,7 +30,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container max-w-5xl mx-auto px-4 py-4 flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -40,7 +44,6 @@ const Index = () => {
 
       <main className="container max-w-5xl mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-5 gap-8">
-          {/* Left: Order Form */}
           <div className="lg:col-span-3 space-y-6">
             {/* Step 1: Printer */}
             <section className="space-y-3">
@@ -50,12 +53,7 @@ const Index = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {(Object.keys(PRINTERS) as PrinterType[]).map((key) => (
-                  <PrinterCard
-                    key={key}
-                    type={key}
-                    selected={printer === key}
-                    onSelect={() => setPrinter(key)}
-                  />
+                  <PrinterCard key={key} type={key} selected={printer === key} onSelect={() => setPrinter(key)} />
                 ))}
               </div>
             </section>
@@ -69,20 +67,13 @@ const Index = () => {
               <FilamentSelector selected={filament} onSelect={setFilament} />
             </section>
 
-            {/* Step 3: Estimate */}
+            {/* Step 3: Upload STL */}
             <section className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="h-5 w-5 rounded-full bg-primary/20 text-primary text-[11px] font-bold font-mono flex items-center justify-center">3</span>
-                <h2 className="text-sm font-semibold text-foreground">Print Details & Estimate</h2>
+                <h2 className="text-sm font-semibold text-foreground">Upload STL File</h2>
               </div>
-              <PriceEstimator
-                printer={printer}
-                filament={filament}
-                timeMinutes={timeMinutes}
-                grams={grams}
-                onTimeChange={setTimeMinutes}
-                onGramsChange={setGrams}
-              />
+              <StlUploader printer={printer} filament={filament} onEstimate={handleEstimate} />
             </section>
 
             {/* Step 4: Submit */}
@@ -91,13 +82,7 @@ const Index = () => {
                 <span className="h-5 w-5 rounded-full bg-primary/20 text-primary text-[11px] font-bold font-mono flex items-center justify-center">4</span>
                 <h2 className="text-sm font-semibold text-foreground">Your Information</h2>
               </div>
-              <OrderForm
-                printer={printer}
-                filament={filament}
-                timeMinutes={timeMinutes}
-                grams={grams}
-                onOrderPlaced={handleOrderPlaced}
-              />
+              <OrderForm printer={printer} filament={filament} timeMinutes={timeMinutes} grams={grams} onOrderPlaced={handleOrderPlaced} />
             </section>
           </div>
 
