@@ -6,6 +6,7 @@ import { FilamentSelector } from '@/components/FilamentSelector';
 import { StlUploader } from '@/components/StlUploader';
 import { OrderForm } from '@/components/OrderForm';
 import { PrintQueue } from '@/components/PrintQueue';
+import { PrintAdvisor } from '@/components/PrintAdvisor';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { useAuth } from '@/lib/auth-context';
 import { Layers, ListOrdered } from 'lucide-react';
@@ -111,6 +112,7 @@ const Index = () => {
           </div>
         </div>
       </main>
+      <PrintAdvisor />
     </div>
   );
 };
