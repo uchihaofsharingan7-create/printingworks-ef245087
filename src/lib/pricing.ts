@@ -27,14 +27,6 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
   },
 };
 
-const BASE_COST = 2;
-
-export function roundPrice(price: number): number {
-  if (price >= 0.80) {
-    return Math.round(price);
-  }
-  return price;
-}
 
 export function estimateTimeMinutes(
   volumeCm3: number,
