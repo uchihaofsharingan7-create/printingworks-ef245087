@@ -15,20 +15,20 @@ export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = 
 // Moved RATES up here so functions can access it
 const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
   adventure5m: {
-    timeRate: { pla: 0.0009, petg: 0.0009 },
+    timeRate: { pla: 0.00009, petg: 0.00009 },
     gramRate: { pla: 0.25, petg: 0.35 },
   },
   ender3pro: {
-    timeRate: { pla: 0.0000009, petg: 0.0000009 },
+    timeRate: { pla: 0.000000000000009, petg: 0.00000000000000009 },
     gramRate: { pla: 0.25, petg: 0.35 },
   },
   adventure4: {
-    timeRate: { pla: 0.00005, petg: 0.00005 },
+    timeRate: { pla: 0.0000000005, petg: 0.000000000005 },
     gramRate: { pla: 0.25, petg: 0.35 },
   },
 };
 
-const BASE_COST = 3;
+const BASE_COST = 2;
 
 export function roundPrice(price: number): number {
   // If price is 0.70 or above, round to nearest whole number
