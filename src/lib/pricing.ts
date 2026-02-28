@@ -12,6 +12,22 @@ export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = 
   petg: { name: 'PETG', color: 'Strong, heat resistant' },
 };
 
+  const rates = RATES[printer];
+  const timeCost = timeMinutes * rates.timeRate[filament];
+  const gramCost = weightGrams * rates.gramRate[filament];
+
+  const totalCost = BASE_COST + timeCost + gramCost;
+ //Here is the updated roundPrice function with that specific logic. I’ve updated the condition to strictly check for 0.70 as the threshold.
+
+export function roundPrice(price: number): number {
+  // If price is 0.70 or above, round to nearest whole number
+  if (price >= 0.70) {
+    return Math.round(price);
+  }
+  // Otherwise (less than 0.70), return the price unchanged
+  return price;
+}
+
 const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
   adventure5m: {
     timeRate: { pla: 0.008, petg: 0.008 },
@@ -69,21 +85,5 @@ export function calculateCost(
   
   // FIX: Changed / 20 to / 100 to get actual percentage of volume
   const weightGrams = volumeCm3 * density * (infillPercent / 100);
-
-  const rates = RATES[printer];
-  const timeCost = timeMinutes * rates.timeRate[filament];
-  const gramCost = weightGrams * rates.gramRate[filament];
-
-  const totalCost = BASE_COST + timeCost + gramCost;
- Here is the updated roundPrice function with that specific logic. I’ve updated the condition to strictly check for 0.70 as the threshold.
-
-export function roundPrice(price: number): number {
-  // If price is 0.70 or above, round to nearest whole number
-  if (price >= 0.70) {
-    return Math.round(price);
-  }
-  // Otherwise (less than 0.70), return the price unchanged
-  return price;
-}
   return (totalCost);
 }
