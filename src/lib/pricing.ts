@@ -19,7 +19,7 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
     gramRate: { pla: 0.028, petg: 0.038 },
   },
   ender3pro: {
-    timeRate: { pla: 0.00009, petg: 0.00009 },
+    timeRate: { pla: 0.000009, petg: 0.000009 },
     gramRate: { pla: 0.023, petg: 0.033 },
   },
   adventure4: {
@@ -46,9 +46,9 @@ export function estimateTimeMinutes(
   layerHeight: number = 0.2
 ): number {
   const printerProfiles = {
-    ender3pro: { volumetricRate: 0.18, speedMultiplier: 1 },
-    adventure4: { volumetricRate: 0.35, speedMultiplier: 1.2 },
-    adventure5m: { volumetricRate: 0.95, speedMultiplier: 1.4 }
+    ender3pro: { volumetricRate: 0.18, speedMultiplier: 1.3 },
+    adventure4: { volumetricRate: 0.35, speedMultiplier: 1.4 },
+    adventure5m: { volumetricRate: 0.95, speedMultiplier: 1.6 }
   };
 
   const profile = printerProfiles[printer] || printerProfiles.ender3pro;
