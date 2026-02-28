@@ -1,1 +1,4 @@
 project_id = "xltpiesjfivgpdlawqiq"
+
+[functions.print-advisor]
+verify_jwt = false
