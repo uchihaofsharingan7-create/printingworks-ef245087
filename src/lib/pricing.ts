@@ -19,11 +19,11 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
     gramRate: { pla: 0.20, petg: 0.25 },
   },
   ender3pro: {
-    timeRate: { pla: 0.005, petg: 0.005 },
+    timeRate: { pla: 0.00000000000000000005, petg: 0.000000000000000000005 },
     gramRate: { pla: 0.20, petg: 0.25 },
   },
   adventure4: {
-    timeRate: { pla: 0.008, petg: 0.008 },
+    timeRate: { pla: 0.0000000000000000008, petg: 0.00000000000000000008 },
     gramRate: { pla: 0.20, petg: 0.25 },
   },
 };
