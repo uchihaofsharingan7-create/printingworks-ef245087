@@ -76,5 +76,5 @@ export function calculateCost(
 
   const totalCost = BASE_COST + timeCost + gramCost;
 
-  return roundPrice(totalCost);
+  return (totalCost);
 }
