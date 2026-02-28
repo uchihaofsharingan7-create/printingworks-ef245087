@@ -30,8 +30,45 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
 
 const BASE_COST = 2;
 
-export function calculateCost(printer: PrinterType, filament: FilamentType, timeMinutes: number, grams: number): number {
-  const rate = RATES[printer];
-  const cost = (timeMinutes * rate.timeRate[filament]) + (grams * rate.gramRate[filament]) + BASE_COST;
-  return Math.round(cost * 100) / 100;
+export function estimateTimeMinutes(
+  volumeCm3: number,
+  printer: 'ender3pro' | 'adventure5m' | 'adventure4',
+  infillPercent: number = 20,
+  layerHeight: number = 0.2
+): number {
+
+  const printerProfiles = {
+    ender3pro: {
+      volumetricRate: 0.18,
+      speedMultiplier: 1
+    },
+    adventure4: {
+      volumetricRate: 0.35,
+      speedMultiplier: 1
+    },
+    adventure5m: {
+      volumetricRate: 0.95,
+      speedMultiplier: 1.2
+    }
+  };
+
+  const profile = printerProfiles[printer] || printerProfiles.ender3pro;
+
+  // Adjust for infill
+  const infillFactor = 0.6 + (infillPercent / 100);
+
+  // Adjust for layer height (smaller layers = longer print)
+  const layerFactor = 0.2 / layerHeight;
+
+  const adjustedRate =
+    profile.volumetricRate *
+    profile.speedMultiplier;
+
+  const estimated =
+    (volumeCm3 / adjustedRate) *
+    infillFactor *
+    layerFactor;
+
+  return Math.max(5, Math.round(estimated));
 }
+
