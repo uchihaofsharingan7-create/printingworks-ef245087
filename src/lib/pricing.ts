@@ -17,16 +17,6 @@ export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = 
   const gramCost = weightGrams * rates.gramRate[filament];
 
   const totalCost = BASE_COST + timeCost + gramCost;
- //Here is the updated roundPrice function with that specific logic. I’ve updated the condition to strictly check for 0.70 as the threshold.
-
-export function roundPrice(price: number): number {
-  // If price is 0.70 or above, round to nearest whole number
-  if (price >= 0.70) {
-    return Math.round(price);
-  }
-  // Otherwise (less than 0.70), return the price unchanged
-  return price;
-}
 
 const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
   adventure5m: {
@@ -42,6 +32,15 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
     gramRate: { pla: 0.025, petg: 0.035 },
   },
 };
+
+export function roundPrice(price: number): number {
+  // If price is 0.70 or above, round to nearest whole number
+  if (price >= 0.70) {
+    return Math.round(price);
+  }
+  // Otherwise (less than 0.70), return the price unchanged
+  return price;
+}
 
 export function estimateTimeMinutes(
   volumeCm3: number,
