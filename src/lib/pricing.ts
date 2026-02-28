@@ -31,8 +31,8 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
 const BASE_COST = 2;
 
 export function roundPrice(price: number): number {
-  // If price is 0.70 or above, round to nearest whole number
-  if (price >= 0.70) {
+  // If price is 0.80 or above, round to nearest whole number
+  if (price >= 0.80) {
     return Math.round(price);
   }
   // Otherwise, return the price unchanged
@@ -53,18 +53,18 @@ export function estimateTimeMinutes(
     },
     adventure4: {
       volumetricRate: 0.35,
-      speedMultiplier: 1
+      speedMultiplier: 1.2
     },
     adventure5m: {
       volumetricRate: 0.95,
-      speedMultiplier: 1.2
+      speedMultiplier: 1.4
     }
   };
 
   const profile = printerProfiles[printer] || printerProfiles.ender3pro;
 
   // Adjust for infill
-  const infillFactor = 0.6 + (infillPercent / 100);
+  const infillFactor = 0.6 + (infillPercent / 20);
 
   // Adjust for layer height (smaller layers = longer print)
   const layerFactor = 0.2 / layerHeight;
