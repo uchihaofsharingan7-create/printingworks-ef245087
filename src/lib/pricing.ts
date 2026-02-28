@@ -19,16 +19,16 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
     gramRate: { pla: 0.025, petg: 0.035 },
   },
   ender3pro: {
-    timeRate: { pla: 0.00009, petg: 0.00009 },
+    timeRate: { pla: 0.0000009, petg: 0.0000009 },
     gramRate: { pla: 0.025, petg: 0.035 },
   },
   adventure4: {
-    timeRate: { pla: 0.00005, petg: 0.00005 },
+    timeRate: { pla: 0.0000005, petg: 0.0000005 },
     gramRate: { pla: 0.025, petg: 0.035 },
   },
 };
 
-const BASE_COST = 2;
+const BASE_COST = 3;
 
 export function roundPrice(price: number): number {
   // If price is 0.70 or above, round to nearest whole number
