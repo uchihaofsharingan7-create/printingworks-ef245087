@@ -28,7 +28,7 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
   },
 };
 
-const BASE_COST = 3;
+const BASE_COST = 0;
 
 export function roundPrice(price: number): number {
   if (price >= 0.70) {
