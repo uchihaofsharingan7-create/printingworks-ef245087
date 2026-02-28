@@ -68,6 +68,10 @@ export function estimateTimeMinutes(
     (volumeCm3 / adjustedRate) *
     infillFactor *
     layerFactor;
+  
+  const timeCost = timeMinutes * rates.timeRate[filament];
+  const gramCost = weightGrams * rates.gramRate[filament];
+  const totalCost = BASE_COST + timeCost + gramCost;
 
   return Math.max(5, Math.round(estimated));
 }
