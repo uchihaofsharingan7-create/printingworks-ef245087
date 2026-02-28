@@ -12,30 +12,27 @@ export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = 
   petg: { name: 'PETG', color: 'Strong, heat resistant' },
 };
 
-// Moved RATES up here so functions can access it
 const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
   adventure5m: {
-    timeRate: { pla: 0.00009, petg: 0.00009 },
-    gramRate: { pla: 0.25, petg: 0.35 },
+    timeRate: { pla: 0.01, petg: 0.01 }, // $0.01 per minute
+    gramRate: { pla: 0.20, petg: 0.25 }, 
   },
   ender3pro: {
-    timeRate: { pla: 0.000000000000009, petg: 0.00000000000000009 },
-    gramRate: { pla: 0.25, petg: 0.35 },
+    timeRate: { pla: 0.005, petg: 0.005 },
+    gramRate: { pla: 0.20, petg: 0.25 },
   },
   adventure4: {
-    timeRate: { pla: 0.0000000005, petg: 0.000000000005 },
-    gramRate: { pla: 0.25, petg: 0.35 },
+    timeRate: { pla: 0.008, petg: 0.008 },
+    gramRate: { pla: 0.20, petg: 0.25 },
   },
 };
 
-const BASE_COST = 2;
+const BASE_COST = 3; // Starting at $3 to help hit the $10 goal
 
 export function roundPrice(price: number): number {
-  // If price is 0.70 or above, round to nearest whole number
   if (price >= 0.80) {
     return Math.round(price);
   }
-  // Otherwise (less than 0.70), return the price unchanged
   return price;
 }
 
@@ -72,11 +69,12 @@ export function calculateCost(
   const weightGrams = volumeCm3 * density * (infillPercent / 100);
 
   const rates = RATES[printer];
+  
+  // Logic to prevent time from making the price explode
   const timeCost = timeMinutes * rates.timeRate[filament];
   const gramCost = weightGrams * rates.gramRate[filament];
 
   const totalCost = BASE_COST + timeCost + gramCost;
 
-  // Returning through the rounding function as requested
   return roundPrice(totalCost);
 }
