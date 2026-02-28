@@ -30,6 +30,15 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
 
 const BASE_COST = 2;
 
+export function roundPrice(price: number): number {
+  // If price is 0.70 or above, round to nearest whole number
+  if (price >= 0.70) {
+    return Math.round(price);
+  }
+  // Otherwise, return the price unchanged
+  return price;
+}
+
 export function estimateTimeMinutes(
   volumeCm3: number,
   printer: 'ender3pro' | 'adventure5m' | 'adventure4',
