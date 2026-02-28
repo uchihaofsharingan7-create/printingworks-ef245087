@@ -6,9 +6,13 @@ import { FilamentSelector } from '@/components/FilamentSelector';
 import { StlUploader } from '@/components/StlUploader';
 import { OrderForm } from '@/components/OrderForm';
 import { PrintQueue } from '@/components/PrintQueue';
+import { ProfileMenu } from '@/components/ProfileMenu';
+import { useAuth } from '@/lib/auth-context';
 import { Layers, ListOrdered } from 'lucide-react';
 
 const Index = () => {
+  const { user } = useAuth();
+  const isTechnician = user?.role === 'technician';
   const [printer, setPrinter] = useState<PrinterType | null>(null);
   const [filament, setFilament] = useState<FilamentType | null>(null);
   const [timeMinutes, setTimeMinutes] = useState(0);
@@ -43,6 +47,9 @@ const Index = () => {
           <div>
             <h1 className="text-lg font-bold text-foreground tracking-tight">PrintQueue</h1>
             <p className="text-[11px] text-muted-foreground">3D Printing Service</p>
+          </div>
+          <div className="ml-auto">
+            <ProfileMenu />
           </div>
         </div>
       </header>
@@ -99,7 +106,7 @@ const Index = () => {
                 <h2 className="text-sm font-semibold text-foreground">Print Queue</h2>
                 <span className="ml-auto text-[11px] font-mono text-muted-foreground">{queue.length} jobs</span>
               </div>
-              <PrintQueue queue={queue} onComplete={handleComplete} />
+              <PrintQueue queue={queue} onComplete={isTechnician ? handleComplete : undefined} />
             </div>
           </div>
         </div>
