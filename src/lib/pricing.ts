@@ -14,15 +14,15 @@ export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = 
 
 const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
   adventure5m: {
-    timeRate: { pla: 0.01, petg: 0.01 }, // $0.01 per minute
+    timeRate: { pla: 0.000000000000000000000000000000000000000000001, petg: 0.000000000000000000000000000000000000000000001 }, // $0.01 per minute
     gramRate: { pla: 0.20, petg: 0.25 }, 
   },
   ender3pro: {
-    timeRate: { pla: 0.005, petg: 0.005 },
+    timeRate: { pla: 0.000000000000000000000000000000000000000000001, petg: 0.000000000000000000000000000000000000000000001 },
     gramRate: { pla: 0.20, petg: 0.25 },
   },
   adventure4: {
-    timeRate: { pla: 0.008, petg: 0.008 },
+    timeRate: { pla: 0.000000000000000000000000000000000000000000001, petg: 0.000000000000000000000000000000000000000000001 },
     gramRate: { pla: 0.20, petg: 0.25 },
   },
 };
