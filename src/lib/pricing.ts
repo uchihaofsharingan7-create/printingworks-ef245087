@@ -80,3 +80,25 @@ export function estimateTimeMinutes(
 
   return Math.max(5, Math.round(estimated));
 }
+
+export function calculateCost(
+  printer: PrinterType,
+  filament: FilamentType,
+  volumeCm3: number,
+  infillPercent: number = 20,
+  layerHeight: number = 0.2
+): number {
+  const timeMinutes = estimateTimeMinutes(volumeCm3, printer, infillPercent, layerHeight);
+  
+  // Density: PLA ≈ 1.24g/cm³, PETG ≈ 1.27g/cm³
+  const density = filament === 'pla' ? 1.24 : 1.27;
+  const weightGrams = volumeCm3 * density * (infillPercent / 100);
+
+  const rates = RATES[printer];
+  const timeCost = timeMinutes * rates.timeRate[filament];
+  const gramCost = weightGrams * rates.gramRate[filament];
+
+  const totalCost = BASE_COST + timeCost + gramCost;
+
+  return roundPrice(totalCost);
+}
