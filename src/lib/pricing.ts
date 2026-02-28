@@ -17,15 +17,15 @@ const BASE_COST = 2; // Your $2 base value
 const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
   adventure5m: {
     timeRate: { pla: 0.02, petg: 0.025 }, 
-    gramRate: { pla: 0.20, petg: 0.25 },
+    gramRate: { pla: 0.25, petg: 0.35 },
   },
   adventure4: {
     timeRate: { pla: 0.012, petg: 0.015 }, // Middle ground
-    gramRate: { pla: 0.20, petg: 0.25 },
+    gramRate: { pla: 0.25, petg: 0.35 },
   },
   ender3pro: {
     timeRate: { pla: 0.005, petg: 0.006 }, // Lowest cost
-    gramRate: { pla: 0.20, petg: 0.25 },
+    gramRate: { pla: 0.25, petg: 0.35 },
   },
 };
 
