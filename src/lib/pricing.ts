@@ -7,29 +7,29 @@ export const PRINTERS: Record<PrinterType, { name: string; description: string }
   adventure4: { name: 'Adventure 4 Pro', description: 'Best Overall · 220×220×250mm build volume' },
 };
 
-// This export fixes the SyntaxError in your web app
+// Exporting FILAMENTS to resolve the SyntaxError in your web app
 export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = {
   pla: { name: 'PLA', color: 'Standard, easy to print' },
   petg: { name: 'PETG', color: 'Strong, heat resistant' },
 };
 
-const BASE_COST = 2; // Flat $2 starting fee
+const BASE_COST = 2;
 
 const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
-  // PREMIUM: Fast machine, high convenience fee
+  // Target: ~$13 for 21g PETG
   adventure5m: {
-    timeRate: { pla: 0.06, petg: 0.07 }, // ~$4.20/hr
-    gramRate: { pla: 0.20, petg: 0.25 },
+    timeRate: { pla: 0.04, petg: 0.045 }, 
+    gramRate: { pla: 0.15, petg: 0.18 },
   },
-  // MIDDLE GROUND: Moderate speed and cost
+  // Target: ~$11 for 21g PETG
   adventure4: {
-    timeRate: { pla: 0.03, petg: 0.035 }, // ~$2.10/hr
-    gramRate: { pla: 0.20, petg: 0.25 },
+    timeRate: { pla: 0.02, petg: 0.025 },
+    gramRate: { pla: 0.15, petg: 0.18 },
   },
-  // BUDGET: Slow machine, lowest cost to stay competitive
+  // Target: ~$9 for 21g PETG
   ender3pro: {
-    timeRate: { pla: 0.008, petg: 0.01 }, // ~$0.60/hr
-    gramRate: { pla: 0.20, petg: 0.25 },
+    timeRate: { pla: 0.007, petg: 0.008 },
+    gramRate: { pla: 0.15, petg: 0.18 },
   },
 };
 
@@ -73,4 +73,3 @@ export function calculateCost(
 
   return roundPrice(BASE_COST + timeCost + gramCost);
 }
-
