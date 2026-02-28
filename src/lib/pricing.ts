@@ -15,16 +15,16 @@ export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = 
 // Moved RATES up here so functions can access it
 const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
   adventure5m: {
-    timeRate: { pla: 0.09, petg: 0.09 },
-    gramRate: { pla: 0.025, petg: 0.035 },
+    timeRate: { pla: 0.0009, petg: 0.0009 },
+    gramRate: { pla: 0.25, petg: 0.35 },
   },
   ender3pro: {
     timeRate: { pla: 0.0000009, petg: 0.0000009 },
-    gramRate: { pla: 0.025, petg: 0.035 },
+    gramRate: { pla: 0.25, petg: 0.35 },
   },
   adventure4: {
     timeRate: { pla: 0.00005, petg: 0.00005 },
-    gramRate: { pla: 0.025, petg: 0.035 },
+    gramRate: { pla: 0.25, petg: 0.35 },
   },
 };
 
