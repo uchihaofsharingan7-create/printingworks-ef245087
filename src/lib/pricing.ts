@@ -7,25 +7,29 @@ export const PRINTERS: Record<PrinterType, { name: string; description: string }
   adventure4: { name: 'Adventure 4 Pro', description: 'Best Overall · 220×220×250mm build volume' },
 };
 
+// This export fixes the SyntaxError in your web app
 export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = {
   pla: { name: 'PLA', color: 'Standard, easy to print' },
   petg: { name: 'PETG', color: 'Strong, heat resistant' },
 };
 
-const BASE_COST = 2; // Your $2 base value
+const BASE_COST = 2; // Flat $2 starting fee
 
 const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
+  // PREMIUM: Fast machine, high convenience fee
   adventure5m: {
-    timeRate: { pla: 0.02, petg: 0.025 }, 
-    gramRate: { pla: 0.25, petg: 0.35 },
+    timeRate: { pla: 0.06, petg: 0.07 }, // ~$4.20/hr
+    gramRate: { pla: 0.20, petg: 0.25 },
   },
+  // MIDDLE GROUND: Moderate speed and cost
   adventure4: {
-    timeRate: { pla: 0.012, petg: 0.015 }, // Middle ground
-    gramRate: { pla: 0.25, petg: 0.35 },
+    timeRate: { pla: 0.03, petg: 0.035 }, // ~$2.10/hr
+    gramRate: { pla: 0.20, petg: 0.25 },
   },
+  // BUDGET: Slow machine, lowest cost to stay competitive
   ender3pro: {
-    timeRate: { pla: 0.005, petg: 0.006 }, // Lowest cost
-    gramRate: { pla: 0.25, petg: 0.35 },
+    timeRate: { pla: 0.008, petg: 0.01 }, // ~$0.60/hr
+    gramRate: { pla: 0.20, petg: 0.25 },
   },
 };
 
@@ -52,7 +56,6 @@ export function estimateTimeMinutes(
   return Math.max(5, Math.round(estimated));
 }
 
-// THE MAIN OUTPUT FUNCTION
 export function calculateCost(
   printer: PrinterType,
   filament: FilamentType,
@@ -68,7 +71,6 @@ export function calculateCost(
   const timeCost = timeMinutes * rates.timeRate[filament];
   const gramCost = weightGrams * rates.gramRate[filament];
 
-  const totalCost = BASE_COST + timeCost + gramCost;
-
-  return roundPrice(totalCost);
+  return roundPrice(BASE_COST + timeCost + gramCost);
 }
+
