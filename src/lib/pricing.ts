@@ -7,29 +7,31 @@ export const PRINTERS: Record<PrinterType, { name: string; description: string }
   adventure4: { name: 'Adventure 4 Pro', description: 'Best Overall · 220×220×250mm build volume' },
 };
 
-// Exporting FILAMENTS to resolve the SyntaxError in your web app
 export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = {
   pla: { name: 'PLA', color: 'Standard, easy to print' },
   petg: { name: 'PETG', color: 'Strong, heat resistant' },
 };
 
-const BASE_COST = 2;
+const BASE_COST = 2; // Your $2 base value
 
-const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
-  // Target: ~$13 for 21g PETG
-  adventure5m: {
-    timeRate: { pla: 0.04, petg: 0.045 }, 
-    gramRate: { pla: 0.15, petg: 0.18 },
+const RATES: Record<PrinterType, { timeRate: number; gramRate: number; machineFee: number }> = {
+  // Target: $9 (Base 2 + Grams 6 + Time 1)
+  ender3pro: { 
+    timeRate: 0.003, // Low impact: 374 mins costs only ~$1.10
+    gramRate: 0.28, 
+    machineFee: 0 
   },
-  // Target: ~$11 for 21g PETG
-  adventure4: {
-    timeRate: { pla: 0.02, petg: 0.025 },
-    gramRate: { pla: 0.15, petg: 0.18 },
+  // Target: $11 (Base 2 + Grams 6 + Time 1 + Fee 2)
+  adventure4: { 
+    timeRate: 0.005, 
+    gramRate: 0.28, 
+    machineFee: 2 
   },
-  // Target: ~$9 for 21g PETG
-  ender3pro: {
-    timeRate: { pla: 0.007, petg: 0.008 },
-    gramRate: { pla: 0.15, petg: 0.18 },
+  // Target: $13 (Base 2 + Grams 6 + Time 1 + Fee 4)
+  adventure5m: { 
+    timeRate: 0.007, 
+    gramRate: 0.28, 
+    machineFee: 4 
   },
 };
 
@@ -67,9 +69,20 @@ export function calculateCost(
   const density = filament === 'pla' ? 1.24 : 1.27;
   const weightGrams = volumeCm3 * density * (infillPercent / 100);
 
-  const rates = RATES[printer];
-  const timeCost = timeMinutes * rates.timeRate[filament];
-  const gramCost = weightGrams * rates.gramRate[filament];
+  const config = RATES[printer];
+  
+  // 1. Material Cost (Shared)
+  const materialCost = weightGrams * config.gramRate;
+  
+  // 2. Time Cost (Lowered significantly)
+  const timeCost = timeMinutes * config.timeRate;
+  
+  // 3. Final Sum: Base + Material + Time + Machine Fee
+  const totalCost = BASE_COST + materialCost + timeCost + config.machineFee;
 
-  return roundPrice(BASE_COST + timeCost + gramCost);
+  return roundPrice(totalCost);
+}
+
+export function formatPrice(price: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
 }
