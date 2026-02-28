@@ -1,15 +1,18 @@
-// Fixed Rates: Time is now in dollars per minute (e.g., 0.01 = $0.60/hour)
+// 1. Added a flat $2 base cost to every order
+const BASE_COST = 2;
+
+// 2. Balanced Rates: 5M Pro is now the "Premium/Fast" option
 const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
   adventure5m: {
-    timeRate: { pla: 0.01, petg: 0.015 }, // Faster machine, slightly higher premium
-    gramRate: { pla: 0.20, petg: 0.25 },
-  },
-  ender3pro: {
-    timeRate: { pla: 0.005, petg: 0.008 }, // Cheaper per hour because it's slower
+    timeRate: { pla: 0.02, petg: 0.025 }, // $1.50/hr - High speed premium
     gramRate: { pla: 0.20, petg: 0.25 },
   },
   adventure4: {
-    timeRate: { pla: 0.008, petg: 0.01 },
+    timeRate: { pla: 0.01, petg: 0.012 }, // $0.72/hr
+    gramRate: { pla: 0.20, petg: 0.25 },
+  },
+  ender3pro: {
+    timeRate: { pla: 0.005, petg: 0.007 }, // $0.42/hr - Economy/Slow
     gramRate: { pla: 0.20, petg: 0.25 },
   },
 };
@@ -17,23 +20,25 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
 export function calculateCost(
   printer: PrinterType,
   filament: FilamentType,
-  volumeCm3: number, // Total plastic volume from Slicer
-  timeMinutes: number // Total print time from Slicer
+  volumeCm3: number,
+  infillPercent: number = 20,
+  layerHeight: number = 0.2
 ): number {
-  const density = filament === 'pla' ? 1.24 : 1.27;
+  // Get time from your existing estimation function
+  const timeMinutes = estimateTimeMinutes(volumeCm3, printer, infillPercent, layerHeight);
   
-  // 1. Calculate actual weight
-  const weightGrams = volumeCm3 * density;
+  // Calculate weight correctly: Volume * Density * (Infill as a decimal)
+  const density = filament === 'pla' ? 1.24 : 1.27;
+  const weightGrams = volumeCm3 * density * (infillPercent / 100);
 
-  // 2. Get rates for this specific printer
   const rates = RATES[printer];
   
-  // 3. Calculate components
-  const materialCost = weightGrams * rates.gramRate[filament];
-  const machineTimeCost = timeMinutes * rates.timeRate[filament];
+  // Calculate Costs
+  const timeCost = timeMinutes * rates.timeRate[filament];
+  const gramCost = weightGrams * rates.gramRate[filament];
 
-  const total = materialCost + machineTimeCost;
+  // Total = $2.00 + Time + Grams
+  const totalCost = BASE_COST + timeCost + gramCost;
 
-  // 4. Rounding logic (Only round to whole dollars if over $0.70)
-  return total >= 0.70 ? Math.round(total) : parseFloat(total.toFixed(2));
+  return roundPrice(totalCost);
 }
