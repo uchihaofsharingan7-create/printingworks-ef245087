@@ -71,4 +71,3 @@ export function estimateTimeMinutes(
 
   return Math.max(5, Math.round(estimated));
 }
-
