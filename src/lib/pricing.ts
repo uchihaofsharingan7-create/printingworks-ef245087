@@ -12,12 +12,7 @@ export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = 
   petg: { name: 'PETG', color: 'Strong, heat resistant' },
 };
 
-  const rates = RATES[printer];
-  const timeCost = timeMinutes * rates.timeRate[filament];
-  const gramCost = weightGrams * rates.gramRate[filament];
-
-  const totalCost = BASE_COST + timeCost + gramCost;
-
+// Moved RATES up here so functions can access it
 const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
   adventure5m: {
     timeRate: { pla: 0.008, petg: 0.008 },
@@ -32,6 +27,8 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
     gramRate: { pla: 0.025, petg: 0.035 },
   },
 };
+
+const BASE_COST = 2;
 
 export function roundPrice(price: number): number {
   // If price is 0.70 or above, round to nearest whole number
@@ -48,7 +45,6 @@ export function estimateTimeMinutes(
   infillPercent: number = 20,
   layerHeight: number = 0.2
 ): number {
-
   const printerProfiles = {
     ender3pro: { volumetricRate: 0.18, speedMultiplier: 1 },
     adventure4: { volumetricRate: 0.35, speedMultiplier: 1.2 },
@@ -56,20 +52,13 @@ export function estimateTimeMinutes(
   };
 
   const profile = printerProfiles[printer] || printerProfiles.ender3pro;
-
-  // FIX: Using / 100 instead of / 20. 
-  // 100% infill now acts as a ~1.6x multiplier instead of 5x.
   const infillFactor = 0.6 + (infillPercent / 100);
-
   const layerFactor = 0.2 / layerHeight;
   const adjustedRate = profile.volumetricRate * profile.speedMultiplier;
 
   const estimated = (volumeCm3 / adjustedRate) * infillFactor * layerFactor;
-
   return Math.max(5, Math.round(estimated));
 }
-
-const BASE_COST = 2;
 
 export function calculateCost(
   printer: PrinterType,
@@ -79,10 +68,15 @@ export function calculateCost(
   layerHeight: number = 0.2
 ): number {
   const timeMinutes = estimateTimeMinutes(volumeCm3, printer, infillPercent, layerHeight);
-  
   const density = filament === 'pla' ? 1.24 : 1.27;
-  
-  // FIX: Changed / 20 to / 100 to get actual percentage of volume
   const weightGrams = volumeCm3 * density * (infillPercent / 100);
-  return (totalCost);
+
+  const rates = RATES[printer];
+  const timeCost = timeMinutes * rates.timeRate[filament];
+  const gramCost = weightGrams * rates.gramRate[filament];
+
+  const totalCost = BASE_COST + timeCost + gramCost;
+
+  // Returning through the rounding function as requested
+  return roundPrice(totalCost);
 }
