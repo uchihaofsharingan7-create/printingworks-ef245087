@@ -12,7 +12,6 @@ export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = 
   petg: { name: 'PETG', color: 'Strong, heat resistant' },
 };
 
-// Rates: [timeRate, gramRatePLA, gramRatePETG]
 const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramRate: Record<FilamentType, number> }> = {
   adventure5m: {
     timeRate: { pla: 0.014, petg: 0.0014 },
@@ -31,11 +30,9 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
 const BASE_COST = 2;
 
 export function roundPrice(price: number): number {
-  // If price is 0.80 or above, round to nearest whole number
   if (price >= 0.80) {
     return Math.round(price);
   }
-  // Otherwise, return the price unchanged
   return price;
 }
 
@@ -47,36 +44,21 @@ export function estimateTimeMinutes(
 ): number {
 
   const printerProfiles = {
-    ender3pro: {
-      volumetricRate: 0.18,
-      speedMultiplier: 1
-    },
-    adventure4: {
-      volumetricRate: 0.35,
-      speedMultiplier: 1.2
-    },
-    adventure5m: {
-      volumetricRate: 0.95,
-      speedMultiplier: 1.4
-    }
+    ender3pro: { volumetricRate: 0.18, speedMultiplier: 1 },
+    adventure4: { volumetricRate: 0.35, speedMultiplier: 1.2 },
+    adventure5m: { volumetricRate: 0.95, speedMultiplier: 1.4 }
   };
 
   const profile = printerProfiles[printer] || printerProfiles.ender3pro;
 
-  // Adjust for infill
-  const infillFactor = 0.6 + (infillPercent / 20);
+  // FIX: Using / 100 instead of / 20. 
+  // 100% infill now acts as a ~1.6x multiplier instead of 5x.
+  const infillFactor = 0.6 + (infillPercent / 100);
 
-  // Adjust for layer height (smaller layers = longer print)
   const layerFactor = 0.2 / layerHeight;
+  const adjustedRate = profile.volumetricRate * profile.speedMultiplier;
 
-  const adjustedRate =
-    profile.volumetricRate *
-    profile.speedMultiplier;
-
-  const estimated =
-    (volumeCm3 / adjustedRate) *
-    infillFactor *
-    layerFactor;
+  const estimated = (volumeCm3 / adjustedRate) * infillFactor * layerFactor;
 
   return Math.max(5, Math.round(estimated));
 }
@@ -90,9 +72,10 @@ export function calculateCost(
 ): number {
   const timeMinutes = estimateTimeMinutes(volumeCm3, printer, infillPercent, layerHeight);
   
-  // Density: PLA ≈ 1.24g/cm³, PETG ≈ 1.27g/cm³
   const density = filament === 'pla' ? 1.24 : 1.27;
-  const weightGrams = volumeCm3 * density * (infillPercent / 20);
+  
+  // FIX: Changed / 20 to / 100 to get actual percentage of volume
+  const weightGrams = volumeCm3 * density * (infillPercent / 100);
 
   const rates = RATES[printer];
   const timeCost = timeMinutes * rates.timeRate[filament];
