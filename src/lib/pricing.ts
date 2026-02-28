@@ -54,7 +54,7 @@ export function estimateTimeMinutes(
   return Math.max(5, Math.round(estimated));
 }
 
-BASE_COST= 2
+BASE_COST = 2
 
 export function calculateCost(
   printer: PrinterType,
