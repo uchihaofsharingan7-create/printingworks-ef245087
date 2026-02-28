@@ -27,7 +27,6 @@ const RATES: Record<PrinterType, { timeRate: Record<FilamentType, number>; gramR
   },
 };
 
-BASE_COST= 2
 export function estimateTimeMinutes(
   volumeCm3: number,
   printer: 'ender3pro' | 'adventure5m' | 'adventure4',
@@ -54,6 +53,8 @@ export function estimateTimeMinutes(
 
   return Math.max(5, Math.round(estimated));
 }
+
+BASE_COST= 2
 
 export function calculateCost(
   printer: PrinterType,
