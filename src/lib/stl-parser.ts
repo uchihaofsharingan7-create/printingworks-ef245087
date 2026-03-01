@@ -43,7 +43,9 @@ export function parseSTL(buffer: ArrayBuffer): { volume: number; triangleCount: 
  */
 export function estimateGrams(volumeCm3: number, filament: 'pla' | 'petg'): number {
   const density = filament === 'pla' ? 1.24 : 1.27; // g/cm³
-  const materialFraction = 0.30; // shells + 20% infill ≈ 30% fill
+  // Real slicer output with 20% infill, 3 walls (1.2mm), 4 top/bottom layers
+  // shows ~55-60% material fill ratio for typical models
+  const materialFraction = 0.58;
   return Math.round(volumeCm3 * density * materialFraction * 10) / 10;
 }
 
