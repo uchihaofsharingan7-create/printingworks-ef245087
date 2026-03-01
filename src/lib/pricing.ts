@@ -51,20 +51,10 @@ export function estimateTimeMinutes(
 export function calculateCost(
   printer: PrinterType,
   filament: FilamentType,
-  volumeCm3: number,
-  infillPercent: number = 20,
-  layerHeight: number = 0.2
+  weightGrams: number
 ): number {
-  // 1. Calculate weight based on type
-  const density = filament === 'pla' ? 1.24 : 1.27;
-  const weightGrams = volumeCm3 * density * (infillPercent / 100);
-
-  // 2. Get the costs
   const materialCost = weightGrams * FILAMENT_GRAM_COST[filament];
   const printerFee = PRINTER_FEES[printer];
-
-  // 3. Simple Sum
   const totalCost = BASE_COST + materialCost + printerFee;
-
   return roundPrice(totalCost);
 }

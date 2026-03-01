@@ -86,7 +86,7 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
   };
 
   const cost = printer && filament && stats
-    ? calculateCost(printer, filament, stats.volume)
+    ? calculateCost(printer, filament, stats.grams)
     : null;
 
   return (

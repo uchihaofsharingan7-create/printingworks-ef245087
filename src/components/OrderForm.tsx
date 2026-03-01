@@ -21,8 +21,8 @@ export function OrderForm({ printer, filament, timeMinutes, grams, onOrderPlaced
   const [agreed, setAgreed] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
 
-  const cost = printer && filament && timeMinutes > 0 && grams > 0
-    ? calculateCost(printer, filament, timeMinutes, grams)
+  const cost = printer && filament && grams > 0
+    ? calculateCost(printer, filament, grams)
     : null;
 
   const canSubmit = fullName.trim().length >= 2 && agreed && cost !== null;
