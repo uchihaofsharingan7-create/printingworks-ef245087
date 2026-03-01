@@ -12,26 +12,20 @@ export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = 
   petg: { name: 'PETG', color: 'Strong, heat resistant' },
 };
 
-const BASE_COST = 2; // Your $2 base value
+const BASE_COST = 2; // Fixed base value
 
-const RATES: Record<PrinterType, { timeRate: number; gramRate: number; machineFee: number }> = {
-  // Target: $9 (Base 2 + Grams 6 + Time 1)
+const RATES: Record<PrinterType, { setTimePrice: number; gramRate: number }> = {
   ender3pro: { 
-    timeRate: 0.003, // Low impact: 374 mins costs only ~$1.10
-    gramRate: 0.28, 
-    machineFee: 0 
+    setTimePrice: 1, // Your requested $1
+    gramRate: 0.29 
   },
-  // Target: $11 (Base 2 + Grams 6 + Time 1 + Fee 2)
   adventure4: { 
-    timeRate: 0.005, 
-    gramRate: 0.28, 
-    machineFee: 2 
+    setTimePrice: 2, // Your requested $2
+    gramRate: 0.29 
   },
-  // Target: $13 (Base 2 + Grams 6 + Time 1 + Fee 4)
   adventure5m: { 
-    timeRate: 0.007, 
-    gramRate: 0.28, 
-    machineFee: 4 
+    setTimePrice: 3, // Your requested $3
+    gramRate: 0.29 
   },
 };
 
@@ -65,24 +59,15 @@ export function calculateCost(
   infillPercent: number = 20,
   layerHeight: number = 0.2
 ): number {
-  const timeMinutes = estimateTimeMinutes(volumeCm3, printer, infillPercent, layerHeight);
   const density = filament === 'pla' ? 1.24 : 1.27;
   const weightGrams = volumeCm3 * density * (infillPercent / 100);
 
   const config = RATES[printer];
   
-  // 1. Material Cost (Shared)
   const materialCost = weightGrams * config.gramRate;
   
-  // 2. Time Cost (Lowered significantly)
-  const timeCost = timeMinutes * config.timeRate;
-  
-  // 3. Final Sum: Base + Material + Time + Machine Fee
-  const totalCost = BASE_COST + materialCost + timeCost + config.machineFee;
+  // Logic: $2 Base + (Weight * 0.29) + Your Flat Printer Fee
+  const totalCost = BASE_COST + materialCost + config.setTimePrice;
 
   return roundPrice(totalCost);
-}
-
-export function formatPrice(price: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
 }
