@@ -1,4 +1,3 @@
-import { useState } from 'react'; // Add this line if it is missing!
 import { CuraWASM } from 'cura-wasm';
 
 export type PrinterType = 'ender3pro' | 'adventure5m' | 'adventure4';
