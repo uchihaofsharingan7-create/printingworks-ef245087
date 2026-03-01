@@ -40,17 +40,30 @@ export function roundPrice(price: number): number {
   return price >= 0.70 ? Math.round(price) : parseFloat(price.toFixed(2));
 }
 
+/**
+ * FIXED Slicer Function
+ * Pulls the engine from CDN to avoid the missing file issues.
+ */
 export async function getSlicedWeight(file: File, printerType: PrinterType): Promise<number> {
   try {
+    // Fixes the "Expected 1 argument" error by passing a config object
     const slicer = new CuraWASM({
-        command: "slice" // Fixes the "1 argument" error
+      command: "slice",
+      // Using CDN links so you don't need the files in your public folder
+      engine: "https://unpkg.com/cura-wasm-definitions@1.1.0/dist/cura-engine.wasm",
+      worker: "https://unpkg.com/cura-wasm@2.2.0/dist/worker.js"
     } as any);
     
     const profile = PRINTER_PROFILES[printerType];
     const arrayBuffer = await file.arrayBuffer();
-    const result = await slicer.slice(arrayBuffer, profile as any);
+    
+    // Cast to 'any' to fix the "Property match does not exist" error
+    const result = await slicer.slice(arrayBuffer, profile as any) as any;
+    
+    // Convert the result to string so we can read the G-code
     const gcodeString = new TextDecoder().decode(result.gcode);
     
+    // Extract weight from G-code comments
     const weightMatch = gcodeString.match(/filament used \[g\]: ([\d.]+)/);
     return weightMatch ? parseFloat(weightMatch[1]) : 0;
   } catch (error) {
