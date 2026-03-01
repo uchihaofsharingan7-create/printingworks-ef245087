@@ -15,20 +15,28 @@ export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = 
 const BASE_COST = 2;
 
 const FILAMENT_GRAM_COST: Record<FilamentType, number> = {
-  pla: 0.25,  // Your requested price
-  petg: 0.35, // Your requested price
+  pla: 0.25,
+  petg: 0.35,
 };
 
 const PRINTER_FEES: Record<PrinterType, number> = {
-  ender3pro: 1,   // Your requested $1
-  adventure4: 2,  // Your requested $2
-  adventure5m: 3, // Your requested $3
+  ender3pro: 1,
+  adventure4: 2,
+  adventure5m: 3,
 };
 
+/**
+ * Rounds prices to the nearest dollar if they are over $0.70, 
+ * otherwise keeps two decimal places.
+ */
 export function roundPrice(price: number): number {
   return price >= 0.70 ? Math.round(price) : parseFloat(price.toFixed(2));
 }
 
+/**
+ * Estimates print time in minutes based on printer volumetric rates.
+ * This is used for UI display only and does not affect the price.
+ */
 export function estimateTimeMinutes(
   volumeCm3: number,
   printer: PrinterType,
@@ -48,13 +56,35 @@ export function estimateTimeMinutes(
   return Math.max(5, Math.round(estimated));
 }
 
+/**
+ * Calculates the final cost using:
+ * Base ($2) + (Grams * Filament Rate) + Flat Printer Fee
+ */
 export function calculateCost(
   printer: PrinterType,
   filament: FilamentType,
-  weightGrams: number
+  volumeCm3: number,
+  infillPercent: number = 20
 ): number {
+  // 1. Calculate weight based on material density
+  const density = filament === 'pla' ? 1.24 : 1.27;
+  
+  // We calculate weight assuming a mix of solid shells and hollow infill
+  // This helps prevent the "under/overshooting" of weight estimates.
+  const shellVolume = volumeCm3 * 0.15; // Assume 15% is solid walls/floors
+  const infillVolume = volumeCm3 * 0.85 * (infillPercent / 100);
+  const weightGrams = (shellVolume + infillVolume) * density;
+
+  // 2. Apply rates
   const materialCost = weightGrams * FILAMENT_GRAM_COST[filament];
   const printerFee = PRINTER_FEES[printer];
+
+  // 3. Final Sum
   const totalCost = BASE_COST + materialCost + printerFee;
+
   return roundPrice(totalCost);
+}
+
+export function formatPrice(price: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
 }
