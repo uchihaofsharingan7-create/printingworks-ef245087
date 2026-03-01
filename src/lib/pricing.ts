@@ -40,22 +40,15 @@ export function roundPrice(price: number): number {
   return price >= 0.70 ? Math.round(price) : parseFloat(price.toFixed(2));
 }
 
-/**
- * The Brain: Uses Cura-WASM to get exact grams from an STL file.
- * Fixed the 3 errors regarding: constructor arguments, profile types, and .match() availability.
- */
 export async function getSlicedWeight(file: File, printerType: PrinterType): Promise<number> {
   try {
-    // Fix 1: Pass an empty object to satisfy the required 'config' argument
-    const slicer = new CuraWASM({});
+    const slicer = new CuraWASM({
+        command: "slice" // Fixes the "1 argument" error
+    } as any);
     
     const profile = PRINTER_PROFILES[printerType];
     const arrayBuffer = await file.arrayBuffer();
-    
-    // Fix 2: Cast profile 'as any' to bypass strict string-only type checks
     const result = await slicer.slice(arrayBuffer, profile as any);
-
-    // Fix 3: Result is an object; we must decode the ArrayBuffer 'gcode' into a string
     const gcodeString = new TextDecoder().decode(result.gcode);
     
     const weightMatch = gcodeString.match(/filament used \[g\]: ([\d.]+)/);
@@ -66,17 +59,8 @@ export async function getSlicedWeight(file: File, printerType: PrinterType): Pro
   }
 }
 
-/**
- * The Accountant: $2 Base + (Grams * Material) + Machine Fee
- */
 export function calculateCost(printer: PrinterType, filament: FilamentType, weightGrams: number): number {
   const materialCost = weightGrams * FILAMENT_GRAM_COST[filament];
   const printerFee = PRINTER_FEES[printer];
-  
-  const total = BASE_COST + materialCost + printerFee;
-  return roundPrice(total);
-}
-
-export function formatPrice(price: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
+  return roundPrice(BASE_COST + materialCost + printerFee);
 }
