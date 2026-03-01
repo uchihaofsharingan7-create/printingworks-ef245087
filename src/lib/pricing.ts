@@ -12,21 +12,17 @@ export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = 
   petg: { name: 'PETG', color: 'Strong, heat resistant' },
 };
 
-const BASE_COST = 2; // Fixed base value
+const BASE_COST = 2;
 
-const RATES: Record<PrinterType, { setTimePrice: number; gramRate: number }> = {
-  ender3pro: { 
-    setTimePrice: 1, // Your requested $1
-    gramRate: 0.29 
-  },
-  adventure4: { 
-    setTimePrice: 2, // Your requested $2
-    gramRate: 0.29 
-  },
-  adventure5m: { 
-    setTimePrice: 3, // Your requested $3
-    gramRate: 0.29 
-  },
+const FILAMENT_GRAM_COST: Record<FilamentType, number> = {
+  pla: 0.25,  // Your requested price
+  petg: 0.35, // Your requested price
+};
+
+const PRINTER_FEES: Record<PrinterType, number> = {
+  ender3pro: 1,   // Your requested $1
+  adventure4: 2,  // Your requested $2
+  adventure5m: 3, // Your requested $3
 };
 
 export function roundPrice(price: number): number {
@@ -59,15 +55,16 @@ export function calculateCost(
   infillPercent: number = 20,
   layerHeight: number = 0.2
 ): number {
+  // 1. Calculate weight based on type
   const density = filament === 'pla' ? 1.24 : 1.27;
   const weightGrams = volumeCm3 * density * (infillPercent / 100);
 
-  const config = RATES[printer];
-  
-  const materialCost = weightGrams * config.gramRate;
-  
-  // Logic: $2 Base + (Weight * 0.29) + Your Flat Printer Fee
-  const totalCost = BASE_COST + materialCost + config.setTimePrice;
+  // 2. Get the costs
+  const materialCost = weightGrams * FILAMENT_GRAM_COST[filament];
+  const printerFee = PRINTER_FEES[printer];
+
+  // 3. Simple Sum
+  const totalCost = BASE_COST + materialCost + printerFee;
 
   return roundPrice(totalCost);
 }
