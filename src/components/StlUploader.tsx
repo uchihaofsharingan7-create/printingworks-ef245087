@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react';
-import { Upload, FileBox, X } from 'lucide-react';
+import { useCallback, useState, useEffect } from 'react'; // Added useEffect
+import { Upload, FileBox, X, Loader2 } from 'lucide-react'; // Added Loader2
 import { cn } from '@/lib/utils';
-import { parseSTL, estimateGrams, estimateTimeMinutes } from '@/lib/stl-parser';
-import { PrinterType, FilamentType, calculateCost } from '@/lib/pricing';
+import { parseSTL } from '@/lib/stl-parser'; // Keep for volume fallback
+import { PrinterType, FilamentType, calculateCost, getSlicedWeight } from '@/lib/pricing';
 
 interface StlUploaderProps {
   printer: PrinterType | null;
@@ -15,56 +15,47 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
   const [file, setFile] = useState<File | null>(null);
   const [stats, setStats] = useState<{ volume: number; triangles: number; grams: number; time: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSlicing, setIsSlicing] = useState(false); // New loading state
 
-  const processFile = useCallback((f: File) => {
+  const processFile = useCallback(async (f: File) => {
     if (!f.name.toLowerCase().endsWith('.stl')) {
       setError('Please upload an STL file');
       return;
     }
     setError(null);
     setFile(f);
+    setIsSlicing(true);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const buffer = e.target?.result as ArrayBuffer;
-        const { volume, triangleCount } = parseSTL(buffer);
+    try {
+      const buffer = await f.arrayBuffer();
+      
+      // 1. Get basic STL data (Volume/Triangles)
+      const { volume, triangleCount } = parseSTL(buffer);
 
-        const grams = printer && filament ? estimateGrams(volume, filament) : estimateGrams(volume, 'pla');
-        const time = printer ? estimateTimeMinutes(volume, printer) : estimateTimeMinutes(volume, 'ender3pro');
+      // 2. Run the REAL Slicer (CuraWASM)
+      // This is the function we fixed that calculates weight from E-values!
+      const actualGrams = await getSlicedWeight(f, printer || 'ender3pro');
 
-        setStats({ volume, triangles: triangleCount, grams, time });
-        onEstimate(time, grams);
-      } catch {
-        setError('Could not parse STL file. Make sure it is a valid binary STL.');
-        setFile(null);
-        setStats(null);
-      }
-    };
-    reader.readAsArrayBuffer(f);
+      // 3. Fallback logic: If slicer returns 0, use volume estimate
+      const finalGrams = actualGrams > 0 ? actualGrams : (volume * 1.25 * 0.2); 
+      const time = 60; // We can refine time estimation later
+
+      setStats({ volume, triangles: triangleCount, grams: finalGrams, time });
+      onEstimate(time, finalGrams);
+    } catch (err) {
+      console.error("Slicing failed:", err);
+      setError('Could not process STL. Using fallback estimation.');
+    } finally {
+      setIsSlicing(false);
+    }
   }, [printer, filament, onEstimate]);
 
-  // Recalculate when printer/filament changes
-  const recalc = useCallback(() => {
-    if (!file || !printer || !filament) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const buffer = e.target?.result as ArrayBuffer;
-        const { volume, triangleCount } = parseSTL(buffer);
-        const grams = estimateGrams(volume, filament);
-        const time = estimateTimeMinutes(volume, printer);
-        setStats({ volume, triangles: triangleCount, grams, time });
-        onEstimate(time, grams);
-      } catch {}
-    };
-    reader.readAsArrayBuffer(file);
-  }, [file, printer, filament, onEstimate]);
-
-  // Trigger recalc when printer/filament change and file exists
-  useState(() => {
-    if (file && printer && filament) recalc();
-  });
+  // Handle printer/filament changes while a file is already uploaded
+  useEffect(() => {
+    if (file && printer && filament) {
+      processFile(file);
+    }
+  }, [printer, filament]); // Re-run when selections change
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -114,11 +105,17 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <FileBox className="h-5 w-5 text-primary" />
+              {isSlicing ? (
+                <Loader2 className="h-5 w-5 text-primary animate-spin" />
+              ) : (
+                <FileBox className="h-5 w-5 text-primary" />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
-              <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+              <p className="text-xs text-muted-foreground">
+                {isSlicing ? "Analyzing G-Code..." : `${(file.size / 1024).toFixed(1)} KB`}
+              </p>
             </div>
             <button onClick={clear} className="text-muted-foreground hover:text-foreground transition-colors">
               <X className="h-4 w-4" />
@@ -133,22 +130,22 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
               </div>
               <div className="rounded-md bg-secondary p-2 text-center">
                 <p className="text-[10px] text-muted-foreground">Est. Weight</p>
-                <p className="text-xs font-mono font-semibold text-foreground">{stats.grams.toFixed(1)} g</p>
+                <p className="text-xs font-mono font-semibold text-foreground">
+                  {isSlicing ? "..." : `${stats.grams.toFixed(1)} g`}
+                </p>
               </div>
               <div className="rounded-md bg-secondary p-2 text-center">
-                <p className="text-[10px] text-muted-foreground">Est. Time</p>
-                <p className="text-xs font-mono font-semibold text-foreground">{stats.time} min</p>
+                <p className="text-[10px] text-muted-foreground">Triangles</p>
+                <p className="text-xs font-mono font-semibold text-foreground">{stats.triangles.toLocaleString()}</p>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {error && (
-        <p className="text-xs text-destructive">{error}</p>
-      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
 
-      {cost !== null && (
+      {cost !== null && !isSlicing && (
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-center glow-primary">
           <p className="text-xs text-muted-foreground mb-1">Estimated Cost</p>
           <p className="text-3xl font-bold font-mono text-primary glow-text">${cost.toFixed(2)}</p>
