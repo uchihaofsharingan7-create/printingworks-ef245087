@@ -40,21 +40,38 @@ export function roundPrice(price: number): number {
   return price >= 0.70 ? Math.round(price) : parseFloat(price.toFixed(2));
 }
 
+/**
+ * FIXED getSlicedWeight
+ * This version uses CDN links so the browser can download the slicer engine
+ * without needing the messy files in your /public folder.
+ */
 export async function getSlicedWeight(file: File, printerType: PrinterType): Promise<number> {
   try {
+    // We provide the command AND the direct links to the engine/worker
     const slicer = new CuraWASM({
-        command: "slice" // Fixes the "1 argument" error
+      command: "slice",
+      engine: "https://unpkg.com/cura-wasm-definitions@1.1.0/dist/cura-engine.wasm",
+      worker: "https://unpkg.com/cura-wasm@2.2.0/dist/worker.js"
     } as any);
     
     const profile = PRINTER_PROFILES[printerType];
     const arrayBuffer = await file.arrayBuffer();
-    const result = await slicer.slice(arrayBuffer, profile as any);
+    
+    // Run the slice and cast to 'any' to avoid TypeScript property errors
+    const result = await slicer.slice(arrayBuffer, profile as any) as any;
+    
+    if (!result || !result.gcode) {
+      console.error("Slicer returned no G-code.");
+      return 0;
+    }
+
     const gcodeString = new TextDecoder().decode(result.gcode);
     
+    // Look for the filament weight line in the G-code comments
     const weightMatch = gcodeString.match(/filament used \[g\]: ([\d.]+)/);
     return weightMatch ? parseFloat(weightMatch[1]) : 0;
   } catch (error) {
-    console.error("Slicing engine error:", error);
+    console.error("Slicing engine failure:", error);
     return 0;
   }
 }
