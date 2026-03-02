@@ -3,6 +3,9 @@ import { CuraWASM } from 'cura-wasm';
 export type PrinterType = 'ender3pro' | 'adventure5m' | 'adventure4';
 export type FilamentType = 'pla' | 'petg';
 
+/**
+ * UI Constants for Selection
+ */
 export const PRINTERS: Record<PrinterType, { name: string; description: string }> = {
   ender3pro: { name: 'Ender 3 Pro', description: 'Affordable · 220x220x250mm' },
   adventure4: { name: 'Adventure 4 Pro', description: 'Best Overall · 220x220x250mm' },
@@ -14,10 +17,17 @@ export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = 
   petg: { name: 'PETG', color: 'Strong, heat resistant' },
 };
 
+/**
+ * Pricing Logic Constants
+ */
 const BASE_COST = 2;
 const FILAMENT_GRAM_COST = { pla: 0.25, petg: 0.35 };
 const PRINTER_FEES = { ender3pro: 1, adventure4: 2, adventure5m: 3 };
 
+/**
+ * Slicer Profiles
+ * These tell the WASM engine the physical limits and settings of your printers.
+ */
 const PRINTER_PROFILES = {
   ender3pro: {
     machine_name: "Ender 3 Pro",
@@ -36,67 +46,84 @@ const PRINTER_PROFILES = {
   }
 };
 
+/**
+ * Utility to format the final price
+ */
 export function roundPrice(price: number): number {
   return price >= 0.70 ? Math.round(price) : parseFloat(price.toFixed(2));
 }
 
 /**
- * FULLY INLINED SLICER ENGINE
+ * LOCAL MULTI-FILE SLICER ENGINE
+ * * IMPORTANT: Requires the following files in /public/cura-wasm/:
+ * - worker.js
+ * - cura-engine.wasm
  */
 export async function getSlicedWeight(file: File, printerType: PrinterType): Promise<number> {
-  console.log("🚀 Slicer engine ignition...");
+  console.log("🏠 Initializing Local Slicer for:", file.name);
 
   try {
     const arrayBuffer = await file.arrayBuffer();
     const profile = PRINTER_PROFILES[printerType];
 
-    // Use a direct worker constructor to bypass CDN blocking issues
-    const slicer = new CuraWASM({
-      command: "slice",
-      engine: "https://cdn.jsdelivr.net/npm/cura-wasm-definitions@1.1.0/dist/cura-engine.wasm",
-      worker: new Worker(
-        new URL("https://cdn.jsdelivr.net/npm/cura-wasm@2.2.0/dist/worker.js")
-      )
-    } as any);
-
-    console.log("📡 Slicing in progress for", printerType, "...");
-    
-    // Perform slicing with a 20-second hard limit
-    const resultPromise = (slicer as any).slice(arrayBuffer, profile);
-    const timeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("The slicer took too long to respond.")), 20000)
-    );
-
-    const result = await Promise.race([resultPromise, timeout]) as any;
-
-    if (!result || !result.gcode) {
-      console.error("❌ Slicer returned nothing.");
+    if (!profile) {
+      console.error("❌ No printer profile selected.");
       return 0;
     }
 
+    // Initialize the multi-file engine using local paths
+    const slicer = new CuraWASM({
+      command: "slice",
+      engine: "/cura-wasm/cura-engine.wasm",
+      worker: "/cura-wasm/worker.js"
+    } as any);
+
+    console.log("⏳ Slicing logic executing...");
+    
+    // We wrap this in a timeout promise to prevent the UI from freezing forever 
+    // if the WASM worker crashes silently.
+    const slicePromise = (slicer as any).slice(arrayBuffer, profile);
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Slicing timed out (20s)")), 20000)
+    );
+
+    const result = await Promise.race([slicePromise, timeout]) as any;
+
+    if (!result || !result.gcode) {
+      console.warn("⚠️ Slicer returned no G-code data.");
+      return 0;
+    }
+
+    // Decode binary G-code to searchable text
     const gcodeString = new TextDecoder().decode(result.gcode);
     
-    // Pattern to find: ";Filament used: 15.5g" or "filament used [g]: 15.5"
+    // Search for weight metadata in the G-code comments
     const weightMatch = gcodeString.match(/filament used \[g\]: ([\d.]+)/i) || 
                         gcodeString.match(/Filament used: ([\d.]+)g/i);
 
     if (weightMatch) {
       const grams = parseFloat(weightMatch[1]);
-      console.log("✅ SUCCESS:", grams, "grams");
+      console.log("✅ Weight Found:", grams, "g");
       return grams;
     }
 
-    console.warn("⚠️ G-code generated but weight comment missing.");
+    console.warn("⚠️ G-code parsed but weight metadata was missing.");
     return 0;
 
   } catch (error: any) {
-    console.error("🚨 Slicer Error:", error.message);
-    alert("Slicer failed: " + error.message);
+    console.error("🚨 Local Slicer Error:", error);
+    // This alert is vital for debugging the "0.0g" issue
+    alert("Slicer Failed: " + (error.message || "Unknown Error"));
     return 0;
   }
 }
 
+/**
+ * Final Calculation Logic
+ */
 export function calculateCost(printer: PrinterType, filament: FilamentType, weightGrams: number): number {
+  if (weightGrams <= 0) return 3.00; // Base minimum cost if weight fails
+  
   const materialCost = weightGrams * FILAMENT_GRAM_COST[filament];
   const printerFee = PRINTER_FEES[printer];
   return roundPrice(BASE_COST + materialCost + printerFee);
