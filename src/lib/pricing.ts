@@ -51,16 +51,19 @@ export async function getSlicedWeight(
     const definitionId = CURA_DEFINITION_MAP[printerType];
     const definition = resolveDefinition(definitionId as any);
     
-    const slicer = new CuraWASM({
-      definition,
-      overrides: [
-        { scope: 'e0', key: 'speed_print', value: SPEED_OVERRIDES[printerType] },
-        { scope: 'e0', key: 'infill_sparse_density', value: 20 },
-        { scope: 'e0', key: 'layer_height', value: 0.2 },
-      ],
-      transfer: false, // keep buffer accessible
-      verbose: false,
-    } as any);
+  const slicer = new CuraWASM({
+  definition,
+  overrides: [
+    { scope: 'e0', key: 'speed_print', value: SPEED_OVERRIDES[printerType] },
+    { scope: 'e0', key: 'infill_sparse_density', value: 20 },
+    { scope: 'e0', key: 'layer_height', value: 0.2 },
+  ],
+  transfer: false,
+  verbose: false,
+} as any);
+
+// IMPORTANT: Initialize Cura engine
+await slicer.initialize();
 
     // Listen for progress events
     if (onProgress) {
