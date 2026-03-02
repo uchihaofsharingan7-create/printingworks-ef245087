@@ -41,15 +41,14 @@ export function roundPrice(price: number): number {
 }
 
 /**
- * FIXED getSlicedWeight
- * This version uses CDN links so the browser can download the slicer engine
- * without needing the messy files in your /public folder.
+ * The Slicer Engine
+ * Using CDN links to ensure the WASM engine loads correctly.
  */
 export async function getSlicedWeight(file: File, printerType: PrinterType): Promise<number> {
   try {
-    // We provide the command AND the direct links to the engine/worker
     const slicer = new CuraWASM({
       command: "slice",
+      // These URLs pull the required engine files from the cloud
       engine: "https://unpkg.com/cura-wasm-definitions@1.1.0/dist/cura-engine.wasm",
       worker: "https://unpkg.com/cura-wasm@2.2.0/dist/worker.js"
     } as any);
@@ -57,21 +56,29 @@ export async function getSlicedWeight(file: File, printerType: PrinterType): Pro
     const profile = PRINTER_PROFILES[printerType];
     const arrayBuffer = await file.arrayBuffer();
     
-    // Run the slice and cast to 'any' to avoid TypeScript property errors
+    // Perform actual slicing
     const result = await slicer.slice(arrayBuffer, profile as any) as any;
     
     if (!result || !result.gcode) {
-      console.error("Slicer returned no G-code.");
+      console.error("Slicer failed to generate G-code.");
       return 0;
     }
 
+    // Convert binary result to readable text
     const gcodeString = new TextDecoder().decode(result.gcode);
     
-    // Look for the filament weight line in the G-code comments
+    // Look for the specific filament weight comment in the G-code
     const weightMatch = gcodeString.match(/filament used \[g\]: ([\d.]+)/);
-    return weightMatch ? parseFloat(weightMatch[1]) : 0;
+    
+    if (weightMatch) {
+      const grams = parseFloat(weightMatch[1]);
+      console.log(`Sliced successfully: ${grams}g`);
+      return grams;
+    }
+    
+    return 0;
   } catch (error) {
-    console.error("Slicing engine failure:", error);
+    console.error("Slicing engine error:", error);
     return 0;
   }
 }
