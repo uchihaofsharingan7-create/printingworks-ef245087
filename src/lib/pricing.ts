@@ -39,9 +39,14 @@ export function roundPrice(price: number): number {
 }
 
 /**
- * Slice an STL file using CuraWASM to get accurate weight
+ * Slice an STL file using CuraWASM to get accurate weight.
+ * Optionally accepts a progress callback (0-100).
  */
-export async function getSlicedWeight(file: File, printerType: PrinterType): Promise<number> {
+export async function getSlicedWeight(
+  file: File,
+  printerType: PrinterType,
+  onProgress?: (percent: number) => void
+): Promise<number> {
   try {
     const definitionId = CURA_DEFINITION_MAP[printerType];
     const definition = resolveDefinition(definitionId as any);
@@ -53,43 +58,83 @@ export async function getSlicedWeight(file: File, printerType: PrinterType): Pro
         { scope: 'e0', key: 'infill_sparse_density', value: 20 },
         { scope: 'e0', key: 'layer_height', value: 0.2 },
       ],
-      transfer: true,
+      transfer: false, // keep buffer accessible
       verbose: false,
     } as any);
 
+    // Listen for progress events
+    if (onProgress) {
+      slicer.on('progress', (percent: number) => {
+        onProgress(Math.round(percent));
+      });
+    }
+
     const arrayBuffer = await file.arrayBuffer();
-    const { gcode, metadata } = await slicer.slice(arrayBuffer, 'stl');
+    const { gcode } = await slicer.slice(arrayBuffer, 'stl');
 
-    // Try to extract weight from G-code comments
     const gcodeString = new TextDecoder().decode(gcode);
-    const weightMatch = gcodeString.match(/filament used \[g\]\s*[:=]\s*([\d.]+)/i);
     
-    if (weightMatch) {
+    // Log last 60 lines to debug what CuraEngine actually outputs
+    const lines = gcodeString.split('\n');
+    const tail = lines.slice(-60).join('\n');
+    console.log('[CuraWASM] G-code tail:\n', tail);
+
+    // CuraEngine formats:
+    // ;Filament used: 1.234m
+    // ;Filament used: 1234.5mm  
+    // ;Filament weight (g): 12.3
+    // ;filament used [mm]: 1234
+    // ;filament used [g]: 12.3
+
+    // Try weight in grams first
+    const gMatch = gcodeString.match(/filament\s*(?:weight|used)\s*(?:\(g\)|\[g\])\s*[:=]\s*([\d.]+)/i);
+    if (gMatch) {
+      const weight = parseFloat(gMatch[1]);
+      console.log('[CuraWASM] Extracted weight (g):', weight);
       await slicer.destroy().catch(() => {});
-      return parseFloat(weightMatch[1]);
+      return Math.round(weight * 10) / 10;
     }
 
-    // Fallback: extract filament length (mm) and calculate weight
-    // PLA density ~1.24 g/cm³, filament diameter 1.75mm
-    const lengthMatch = gcodeString.match(/filament used \[mm\]\s*[:=]\s*([\d.]+)/i) 
-      || gcodeString.match(/Filament used:\s*([\d.]+)\s*mm/i);
-    
-    if (lengthMatch) {
-      const lengthMm = parseFloat(lengthMatch[1]);
-      const radiusCm = 0.175 / 2; // 1.75mm diameter in cm
-      const volumeCm3 = Math.PI * radiusCm * radiusCm * (lengthMm / 10);
-      const weightG = volumeCm3 * 1.24; // PLA density
+    // Try filament used in meters (e.g. "Filament used: 1.234m")
+    const mMatch = gcodeString.match(/filament\s*used\s*:\s*([\d.]+)\s*m(?:\b|$)/i);
+    if (mMatch) {
+      const meters = parseFloat(mMatch[1]);
+      const lengthMm = meters * 1000;
+      const weight = filamentLengthToWeight(lengthMm);
+      console.log('[CuraWASM] Extracted length (m):', meters, '=> weight (g):', weight);
       await slicer.destroy().catch(() => {});
-      return Math.round(weightG * 10) / 10;
+      return weight;
     }
+
+    // Try filament used in mm (e.g. "filament used [mm]: 1234" or "Filament used: 1234.5mm")
+    const mmMatch = gcodeString.match(/filament\s*used\s*(?:\[mm\])?\s*[:=]\s*([\d.]+)\s*mm/i)
+      || gcodeString.match(/filament\s*used\s*\[mm\]\s*[:=]\s*([\d.]+)/i);
+    if (mmMatch) {
+      const lengthMm = parseFloat(mmMatch[1]);
+      const weight = filamentLengthToWeight(lengthMm);
+      console.log('[CuraWASM] Extracted length (mm):', lengthMm, '=> weight (g):', weight);
+      await slicer.destroy().catch(() => {});
+      return weight;
+    }
+
+    // Last resort: scan all comment lines for any filament reference
+    const filamentLines = lines.filter(l => l.startsWith(';') && /filament/i.test(l));
+    console.warn('[CuraWASM] No weight regex matched. Filament-related lines:', filamentLines);
 
     await slicer.destroy().catch(() => {});
-    console.warn('Could not extract weight from G-code, returning 0');
     return 0;
   } catch (error) {
     console.error("Slicing engine error:", error);
     return 0;
   }
+}
+
+/** Convert filament length (mm) to weight (g) assuming 1.75mm PLA */
+function filamentLengthToWeight(lengthMm: number): number {
+  const radiusCm = 0.175 / 2; // 1.75mm diameter
+  const volumeCm3 = Math.PI * radiusCm * radiusCm * (lengthMm / 10);
+  const weightG = volumeCm3 * 1.24; // PLA density g/cm³
+  return Math.round(weightG * 10) / 10;
 }
 
 export function calculateCost(printer: PrinterType, filament: FilamentType, weightGrams: number): number {

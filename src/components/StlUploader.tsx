@@ -14,6 +14,7 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
   const [dragOver, setDragOver] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isSlicing, setIsSlicing] = useState(false);
+  const [sliceProgress, setSliceProgress] = useState(0);
   const [stats, setStats] = useState<{ volume: number; triangles: number; grams: number; time: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +31,7 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
     setError(null);
     setFile(f);
     setIsSlicing(true);
+    setSliceProgress(0);
 
     try {
       // 1. Get basic geometry (Volume/Triangles)
@@ -37,7 +39,9 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
       const { volume, triangleCount } = parseSTL(buffer);
 
       // 2. RUN THE REAL SLICER (This takes a moment)
-      const realGrams = await getSlicedWeight(f, printer);
+      const realGrams = await getSlicedWeight(f, printer, (percent) => {
+        setSliceProgress(percent);
+      });
       
       // 3. Estimate time based on the real weight (approx 8 mins per gram)
       const estimatedTime = Math.round(realGrams * 8);
@@ -124,8 +128,16 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
               <p className="text-xs text-muted-foreground">
-                {isSlicing ? 'Slicing model...' : `${(file.size / 1024).toFixed(1)} KB`}
+                {isSlicing ? `Slicing... ${sliceProgress}%` : `${(file.size / 1024).toFixed(1)} KB`}
               </p>
+              {isSlicing && (
+                <div className="mt-1.5 w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${sliceProgress}%` }}
+                  />
+                </div>
+              )}
             </div>
             {!isSlicing && (
               <button onClick={clear} className="text-muted-foreground hover:text-foreground transition-colors">
