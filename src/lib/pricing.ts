@@ -3,13 +3,13 @@ import { CuraWASM } from 'cura-wasm';
 export type PrinterType = 'ender3pro' | 'adventure5m' | 'adventure4';
 export type FilamentType = 'pla' | 'petg';
 
-export const PRINTERS: Record<PrinterType, { name: string; description: string }> = {
+export const PRINTERS: Record<PrinterType, { name: string, description: string }> = {
   ender3pro: { name: 'Ender 3 Pro', description: 'Affordable · 220x220x250mm' },
   adventure4: { name: 'Adventure 4 Pro', description: 'Best Overall · 220x220x250mm' },
   adventure5m: { name: 'Adventure 5M Pro', description: 'High-speed · 220x220x220mm' },
 };
 
-export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = {
+export const FILAMENTS: Record<FilamentType, { name: string, color: string }> = {
   pla: { name: 'PLA', color: 'Standard, easy to print' },
   petg: { name: 'PETG', color: 'Strong, heat resistant' },
 };
@@ -23,10 +23,6 @@ const PRINTER_PROFILES = {
   adventure4: { machine_name: "Adventure 4 Pro", machine_width: 220, machine_depth: 220, machine_height: 250, nozzle_size: 0.4, layer_height: 0.2, infill_sparse_density: 20, speed_print: 80 },
   adventure5m: { machine_name: "Adventure 5M Pro", machine_width: 220, machine_depth: 220, machine_height: 220, nozzle_size: 0.4, layer_height: 0.2, infill_sparse_density: 20, speed_print: 300 }
 };
-
-export function roundPrice(price: number): number {
-  return price >= 0.70 ? Math.round(price) : parseFloat(price.toFixed(2));
-}
 
 export async function getSlicedWeight(file: File, printerType: PrinterType): Promise<number> {
   try {
@@ -44,31 +40,40 @@ export async function getSlicedWeight(file: File, printerType: PrinterType): Pro
 
     const gcodeString = new TextDecoder().decode(result.gcode);
     
-    // 1. Try finding weight comment
+    // 1. Check for weight comment first
     const match = gcodeString.match(/filament used \[g\]: ([\d.]+)/i);
     if (match) return parseFloat(match[1]);
 
-    // 2. FALLBACK: Calculate from E-values (Extrusion)
-    // For 1.75mm PLA, weight is approx (Length in mm / 1000) * 3 grams
+    // 2. PRECISION VOLUMETRIC FALLBACK
     const eMatches = gcodeString.match(/E([\d.]+)/g);
     if (eMatches && eMatches.length > 0) {
       const lastE = eMatches[eMatches.length - 1];
       const lengthMm = parseFloat(lastE.replace('E', ''));
-      const calculatedGrams = (lengthMm / 1000) * 3.0; 
-      console.log(`📏 Manual Calc: ${lengthMm}mm = ${calculatedGrams.toFixed(1)}g`);
-      return parseFloat(calculatedGrams.toFixed(1));
+      
+      /**
+       * Precision Formula for 1.75mm Filament:
+       * Radius = 0.875mm
+       * Area = PI * r^2 = 2.405mm^2
+       * Volume (mm3) = Area * Length
+       * Weight (g) = (Volume / 1000) * Density (1.25 for PLA)
+       */
+      const volumeMm3 = 2.40528 * lengthMm;
+      const grams = (volumeMm3 / 1000) * 1.25;
+      
+      console.log(`📏 Precision Calc: ${lengthMm}mm length -> ${grams.toFixed(1)}g`);
+      return parseFloat(grams.toFixed(1));
     }
 
     return 0;
   } catch (error) {
-    console.error("Slicer Crash:", error);
+    console.error("Slicer Error:", error);
     return 0;
   }
 }
 
 export function calculateCost(printer: PrinterType, filament: FilamentType, weightGrams: number): number {
-  const effectiveWeight = weightGrams > 0 ? weightGrams : 1; 
-  const materialCost = effectiveWeight * FILAMENT_GRAM_COST[filament];
+  const finalWeight = weightGrams > 0 ? weightGrams : 1;
+  const materialCost = finalWeight * FILAMENT_GRAM_COST[filament];
   const printerFee = PRINTER_FEES[printer];
-  return roundPrice(BASE_COST + materialCost + printerFee);
+  return Math.round((BASE_COST + materialCost + printerFee) * 100) / 100;
 }
