@@ -47,6 +47,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "cura-wasm": "^1.5.2",
+    "cura-wasm-definitions": "^1.5.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
