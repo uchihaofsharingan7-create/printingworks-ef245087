@@ -1,142 +1,75 @@
-import React, { useCallback, useState, useEffect } from 'react';
-import { Upload, FileBox, X, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { parseSTL } from '@/lib/stl-parser';
-import { PrinterType, FilamentType, calculateCost, getSlicedWeight } from '@/lib/pricing';
+import { CuraWASM } from 'cura-wasm';
 
-interface StlUploaderProps {
-  printer: PrinterType | null;
-  filament: FilamentType | null;
-  onEstimate: (timeMinutes: number, grams: number) => void;
+export type PrinterType = 'ender3pro' | 'adventure5m' | 'adventure4';
+export type FilamentType = 'pla' | 'petg';
+
+export const PRINTERS: Record<PrinterType, { name: string, description: string }> = {
+  ender3pro: { name: 'Ender 3 Pro', description: 'Affordable · 220x220x250mm' },
+  adventure4: { name: 'Adventure 4 Pro', description: 'Best Overall · 220x220x250mm' },
+  adventure5m: { name: 'Adventure 5M Pro', description: 'High-speed · 220x220x220mm' },
+};
+
+const FILAMENT_GRAM_COST = { pla: 0.25, petg: 0.35 };
+const PRINTER_FEES = { ender3pro: 1, adventure4: 2, adventure5m: 3 };
+const BASE_COST = 2;
+
+const PRINTER_PROFILES = {
+  ender3pro: { machine_name: "Ender 3 Pro", machine_width: 220, machine_depth: 220, machine_height: 250, nozzle_size: 0.4, layer_height: 0.2, infill_sparse_density: 20, speed_print: 50 },
+  adventure4: { machine_name: "Adventure 4 Pro", machine_width: 220, machine_depth: 220, machine_height: 250, nozzle_size: 0.4, layer_height: 0.2, infill_sparse_density: 20, speed_print: 80 },
+  adventure5m: { machine_name: "Adventure 5M Pro", machine_width: 220, machine_depth: 220, machine_height: 220, nozzle_size: 0.4, layer_height: 0.2, infill_sparse_density: 20, speed_print: 300 }
+};
+
+export async function getSlicedWeight(file: File, printerType: PrinterType): Promise<number> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const profile = PRINTER_PROFILES[printerType];
+
+    const slicer = new CuraWASM({
+      command: "slice",
+      engine: "/cura-wasm/cura-engine.wasm",
+      worker: "/cura-wasm/worker.js"
+    } as any);
+
+    const result = await (slicer as any).slice(arrayBuffer, profile) as any;
+    if (!result || !result.gcode) return 0;
+
+    const gcodeString = new TextDecoder().decode(result.gcode);
+    
+    // 1. Try finding weight comment (Standard)
+    const match = gcodeString.match(/filament used \[g\]: ([\d.]+)/i);
+    if (match) return parseFloat(match[1]);
+
+    // 2. BRUTE FORCE FALLBACK: Scan for E-values
+    // We look for every 'E' value and find the maximum one.
+    const eMatches = gcodeString.match(/E([\d.]+)/g);
+    
+    if (eMatches && eMatches.length > 0) {
+      // Map 'E1116.27' to '1116.27' and find the max
+      const numbers = eMatches.map(v => parseFloat(v.substring(1)));
+      const maxE = Math.max(...numbers);
+      
+      /** * PRECISION CALCULATION:
+       * 1.75mm filament has a radius of 0.875mm.
+       * Area = PI * r² ≈ 2.405 mm²
+       * Grams = (Length * Area * Density) / 1000
+       * PLA Density ≈ 1.25 g/cm³
+       */
+      const grams = (maxE * 2.405 * 1.25) / 1000;
+      
+      console.log(`🎯 Brute Force: Max E is ${maxE}mm. Calculated: ${grams.toFixed(1)}g`);
+      return parseFloat(grams.toFixed(1));
+    }
+
+    return 0;
+  } catch (error) {
+    console.error("Slicer Error:", error);
+    return 0;
+  }
 }
 
-export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps) {
-  const [dragOver, setDragOver] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [stats, setStats] = useState<{ volume: number; triangles: number; grams: number; time: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isSlicing, setIsSlicing] = useState(false);
-
-  const processFile = useCallback(async (f: File) => {
-    if (!f.name.toLowerCase().endsWith('.stl')) {
-      setError('Please upload an STL file');
-      return;
-    }
-    setError(null);
-    setFile(f);
-    setIsSlicing(true);
-
-    try {
-      const buffer = await f.arrayBuffer();
-      const { volume, triangleCount } = parseSTL(buffer);
-
-      // Call our brute-force scanner
-      const grams = await getSlicedWeight(f, printer || 'ender3pro');
-      
-      // Fallback to volume if slicer still fails (unlikely now)
-      const finalGrams = grams > 0 ? grams : (volume * 1.25 * 0.2); 
-      const time = 60; // Placeholder time
-
-      setStats({ volume, triangles: triangleCount, grams: finalGrams, time });
-      onEstimate(time, finalGrams);
-    } catch (err) {
-      setError('Slicing engine error. Using fallback estimate.');
-    } finally {
-      setIsSlicing(false);
-    }
-  }, [printer, filament, onEstimate]);
-
-  // Recalculate when options change
-  useEffect(() => {
-    if (file && printer && filament) {
-      processFile(file);
-    }
-  }, [printer, filament]);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const f = e.dataTransfer.files[0];
-    if (f) processFile(f);
-  }, [processFile]);
-
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) processFile(f);
-  }, [processFile]);
-
-  const clear = () => {
-    setFile(null);
-    setStats(null);
-    setError(null);
-    onEstimate(0, 0);
-  };
-
-  const cost = printer && filament && stats
-    ? calculateCost(printer, filament, stats.grams)
-    : null;
-
-  return (
-    <div className="space-y-3">
-      {!file ? (
-        <label
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          className={cn(
-            'flex flex-col items-center gap-3 rounded-lg border-2 border-dashed p-8 cursor-pointer transition-all duration-200',
-            dragOver ? 'border-primary bg-primary/5 shadow-[0_0_15px_rgba(var(--primary),0.2)]' : 'border-border bg-card'
-          )}
-        >
-          <Upload className={cn('h-8 w-8', dragOver ? 'text-primary' : 'text-muted-foreground')} />
-          <div className="text-center">
-            <p className="text-sm font-medium">Drop your STL file here</p>
-            <p className="text-xs text-muted-foreground mt-1">or click to browse</p>
-          </div>
-          <input type="file" accept=".stl" onChange={handleFileInput} className="hidden" />
-        </label>
-      ) : (
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              {isSlicing ? <Loader2 className="h-5 w-5 text-primary animate-spin" /> : <FileBox className="h-5 w-5 text-primary" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{file.name}</p>
-              <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
-            </div>
-            <button onClick={clear} className="text-muted-foreground hover:text-foreground">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          {stats && (
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <div className="rounded-md bg-secondary p-2 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase">Volume</p>
-                <p className="text-xs font-mono font-semibold">{stats.volume.toFixed(1)} cm³</p>
-              </div>
-              <div className="rounded-md bg-secondary p-2 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase">Weight</p>
-                <p className="text-xs font-mono font-semibold">{isSlicing ? "..." : `${stats.grams.toFixed(1)}g`}</p>
-              </div>
-              <div className="rounded-md bg-secondary p-2 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase">Triangles</p>
-                <p className="text-xs font-mono font-semibold">{stats.triangles.toLocaleString()}</p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {error && <p className="text-xs text-destructive">{error}</p>}
-
-      {cost !== null && !isSlicing && (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
-          <p className="text-xs text-muted-foreground mb-1">Estimated Printing Cost</p>
-          <p className="text-3xl font-bold font-mono text-primary">${cost.toFixed(2)}</p>
-        </div>
-      )}
-    </div>
-  );
+export function calculateCost(printer: PrinterType, filament: FilamentType, weightGrams: number): number {
+  const finalWeight = weightGrams > 0 ? weightGrams : 1;
+  const materialCost = finalWeight * FILAMENT_GRAM_COST[filament];
+  const printerFee = PRINTER_FEES[printer];
+  return Math.round((BASE_COST + materialCost + printerFee) * 100) / 100;
 }
