@@ -40,21 +40,58 @@ export function roundPrice(price: number): number {
   return price >= 0.70 ? Math.round(price) : parseFloat(price.toFixed(2));
 }
 
+/**
+ * FULLY INLINED SLICER ENGINE
+ */
 export async function getSlicedWeight(file: File, printerType: PrinterType): Promise<number> {
+  console.log("🚀 Slicer engine ignition...");
+
   try {
-    const slicer = new CuraWASM({
-        command: "slice" // Fixes the "1 argument" error
-    } as any);
-    
-    const profile = PRINTER_PROFILES[printerType];
     const arrayBuffer = await file.arrayBuffer();
-    const result = await slicer.slice(arrayBuffer, profile as any);
+    const profile = PRINTER_PROFILES[printerType];
+
+    // Use a direct worker constructor to bypass CDN blocking issues
+    const slicer = new CuraWASM({
+      command: "slice",
+      engine: "https://cdn.jsdelivr.net/npm/cura-wasm-definitions@1.1.0/dist/cura-engine.wasm",
+      worker: new Worker(
+        new URL("https://cdn.jsdelivr.net/npm/cura-wasm@2.2.0/dist/worker.js")
+      )
+    } as any);
+
+    console.log("📡 Slicing in progress for", printerType, "...");
+    
+    // Perform slicing with a 20-second hard limit
+    const resultPromise = (slicer as any).slice(arrayBuffer, profile);
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("The slicer took too long to respond.")), 20000)
+    );
+
+    const result = await Promise.race([resultPromise, timeout]) as any;
+
+    if (!result || !result.gcode) {
+      console.error("❌ Slicer returned nothing.");
+      return 0;
+    }
+
     const gcodeString = new TextDecoder().decode(result.gcode);
     
-    const weightMatch = gcodeString.match(/filament used \[g\]: ([\d.]+)/);
-    return weightMatch ? parseFloat(weightMatch[1]) : 0;
-  } catch (error) {
-    console.error("Slicing engine error:", error);
+    // Pattern to find: ";Filament used: 15.5g" or "filament used [g]: 15.5"
+    const weightMatch = gcodeString.match(/filament used \[g\]: ([\d.]+)/i) || 
+                        gcodeString.match(/Filament used: ([\d.]+)g/i);
+
+    if (weightMatch) {
+      const grams = parseFloat(weightMatch[1]);
+      console.log("✅ SUCCESS:", grams, "grams");
+      return grams;
+    }
+
+    console.warn("⚠️ G-code generated but weight comment missing.");
+    return 0;
+
+  } catch (error: any) {
+    console.error("🚨 Slicer Error:", error.message);
+    alert("Slicer failed: " + error.message);
     return 0;
   }
 }
