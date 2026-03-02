@@ -1,4 +1,9 @@
 import { CuraWASM } from 'cura-wasm';
+new CuraWASM({
+  definition,
+  wasmPath: "/cura.wasm",
+  workerPath: "/cura.worker.js",
+});
 import { resolveDefinition } from 'cura-wasm-definitions';
 
 export type PrinterType = 'ender3pro' | 'adventure5m' | 'adventure4';
