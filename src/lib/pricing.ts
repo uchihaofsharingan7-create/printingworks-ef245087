@@ -28,10 +28,6 @@ export function roundPrice(price: number): number {
   return price >= 0.70 ? Math.round(price) : parseFloat(price.toFixed(2));
 }
 
-/**
- * CORE SLICER ENGINE
- * Points to local /public/cura-wasm/ files.
- */
 export async function getSlicedWeight(file: File, printerType: PrinterType): Promise<number> {
   try {
     const arrayBuffer = await file.arrayBuffer();
@@ -48,35 +44,31 @@ export async function getSlicedWeight(file: File, printerType: PrinterType): Pro
 
     const gcodeString = new TextDecoder().decode(result.gcode);
     
-    // 1. Try to find the weight comment
+    // 1. Try finding weight comment
     const match = gcodeString.match(/filament used \[g\]: ([\d.]+)/i);
     if (match) return parseFloat(match[1]);
 
-    // 2. FALLBACK: Calculate weight from "E" (Extrusion) values
-    // This is necessary because your G-code is missing the weight comment.
+    // 2. FALLBACK: Calculate from E-values (Extrusion)
+    // For 1.75mm PLA, weight is approx (Length in mm / 1000) * 3 grams
     const eMatches = gcodeString.match(/E([\d.]+)/g);
     if (eMatches && eMatches.length > 0) {
       const lastE = eMatches[eMatches.length - 1];
       const lengthMm = parseFloat(lastE.replace('E', ''));
-      
-      // Math: (Length in mm / 1000) * (Filament Cross Section) * (Density)
-      // Standard 1.75mm PLA is ~3.0 grams per meter.
-      const calculatedGrams = (lengthMm / 1000) * 3.0;
-      
-      console.log(`📏 Extracted E-Value: ${lengthMm}mm. Calculated Weight: ${calculatedGrams.toFixed(1)}g`);
+      const calculatedGrams = (lengthMm / 1000) * 3.0; 
+      console.log(`📏 Manual Calc: ${lengthMm}mm = ${calculatedGrams.toFixed(1)}g`);
       return parseFloat(calculatedGrams.toFixed(1));
     }
 
     return 0;
   } catch (error) {
-    console.error("Slicer Error:", error);
+    console.error("Slicer Crash:", error);
     return 0;
   }
 }
 
 export function calculateCost(printer: PrinterType, filament: FilamentType, weightGrams: number): number {
-  const finalWeight = weightGrams > 0 ? weightGrams : 1; 
-  const materialCost = finalWeight * FILAMENT_GRAM_COST[filament];
+  const effectiveWeight = weightGrams > 0 ? weightGrams : 1; 
+  const materialCost = effectiveWeight * FILAMENT_GRAM_COST[filament];
   const printerFee = PRINTER_FEES[printer];
   return roundPrice(BASE_COST + materialCost + printerFee);
 }
