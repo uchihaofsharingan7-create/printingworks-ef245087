@@ -41,44 +41,67 @@ export function roundPrice(price: number): number {
 }
 
 /**
- * The Slicer Engine
- * Using CDN links to ensure the WASM engine loads correctly.
+ * CORE SLICER ENGINE
+ * Uses JSDelivr for high-speed, reliable loading of the WASM brain.
  */
 export async function getSlicedWeight(file: File, printerType: PrinterType): Promise<number> {
+  console.log("🛠️ Slicer: Starting process for", file.name);
+  
   try {
+    // We use 'as any' to bypass strict Type checking that causes red lines
     const slicer = new CuraWASM({
       command: "slice",
-      // These URLs pull the required engine files from the cloud
-      engine: "https://unpkg.com/cura-wasm-definitions@1.1.0/dist/cura-engine.wasm",
-      worker: "https://unpkg.com/cura-wasm@2.2.0/dist/worker.js"
+      // Using a different CDN (JSDelivr) which is often more stable for Workers
+      engine: "https://cdn.jsdelivr.net/npm/cura-wasm-definitions@1.1.0/dist/cura-engine.wasm",
+      worker: "https://cdn.jsdelivr.net/npm/cura-wasm@2.2.0/dist/worker.js"
     } as any);
     
     const profile = PRINTER_PROFILES[printerType];
-    const arrayBuffer = await file.arrayBuffer();
-    
-    // Perform actual slicing
-    const result = await slicer.slice(arrayBuffer, profile as any) as any;
-    
-    if (!result || !result.gcode) {
-      console.error("Slicer failed to generate G-code.");
+    if (!profile) {
+      alert("Please select a printer first!");
       return 0;
     }
 
-    // Convert binary result to readable text
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Check if the file actually loaded into memory
+    if (arrayBuffer.byteLength === 0) {
+      throw new Error("File is empty or could not be read.");
+    }
+
+    // This is where the magic happens. We wait for the WASM engine to slice.
+    const result = await (slicer as any).slice(arrayBuffer, profile) as any;
+    
+    if (!result || !result.gcode) {
+      throw new Error("Slicer completed but failed to generate G-code.");
+    }
+
+    // Convert the binary result into a string so we can search it
     const gcodeString = new TextDecoder().decode(result.gcode);
     
-    // Look for the specific filament weight comment in the G-code
+    // Look for the weight comment line: "filament used [g]: 15.5"
     const weightMatch = gcodeString.match(/filament used \[g\]: ([\d.]+)/);
     
     if (weightMatch) {
       const grams = parseFloat(weightMatch[1]);
-      console.log(`Sliced successfully: ${grams}g`);
+      console.log("✅ Success! Weight:", grams, "g");
       return grams;
     }
     
+    console.warn("⚠️ Weight not found in G-code. Check printer settings.");
     return 0;
-  } catch (error) {
-    console.error("Slicing engine error:", error);
+
+  } catch (error: any) {
+    // If it fails, we want to know EXACTLY why.
+    console.error("🚨 Slicer Crash:", error);
+    
+    // If you see this alert, tell me the message!
+    if (error.message.includes("SharedArrayBuffer")) {
+      alert("Security Error: Your browser is blocking the slicer's memory. Try a different browser or check site settings.");
+    } else {
+      alert("Slicer Error: " + error.message);
+    }
+    
     return 0;
   }
 }
