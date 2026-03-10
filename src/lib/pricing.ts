@@ -92,22 +92,25 @@ export async function getSlicedWeight(
     const arrayBuffer = await file.arrayBuffer();
 
     const slicer = new CuraWASM({
-      command: 'slice -j definitions/printer.def.json -o Model.gcode -l Model.stl',
+      command: `slice -j definitions/printer.def.json -o Model.gcode -s layer_height=0.2 -s infill_sparse_density=20 -s speed_print=${SPEED_OVERRIDES[printerType]} -l Model.stl`,
       definition: resolveDefinition('creality_ender3pro'),
-      overrides: [
-        { scope: 'e0', key: 'layer_height', value: '0.2' },
-        { scope: 'e0', key: 'infill_sparse_density', value: '20' },
-      ],
       transfer: true,
       verbose: false,
     } as any);
 
     // Progress callback
     if (onProgress) {
-      (slicer as any).on?.('progress', (pct: number) => onProgress(pct));
+      (slicer as any).on?.('progress', (pct: number) => {
+        const normalized = pct > 1 ? pct : pct * 100;
+        onProgress(Math.max(0, Math.min(100, normalized)));
+      });
     }
 
-    const gcodeBytes: ArrayBuffer = await (slicer as any).slice(arrayBuffer, 'stl');
+    const sliceResult = await (slicer as any).slice(arrayBuffer, 'stl');
+    const gcodeData = sliceResult instanceof ArrayBuffer
+      ? sliceResult
+      : sliceResult?.gcode;
+    const gcodeBytes: ArrayBuffer = gcodeData instanceof Uint8Array ? gcodeData.buffer : gcodeData;
 
     // Clean up
     try { (slicer as any).dispose?.(); } catch {}
