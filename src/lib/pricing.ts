@@ -107,9 +107,10 @@ export async function getSlicedWeight(
     }
 
     const sliceResult = await (slicer as any).slice(arrayBuffer, 'stl');
-    const gcodeBytes: ArrayBuffer = sliceResult instanceof ArrayBuffer
+    const gcodeData = sliceResult instanceof ArrayBuffer
       ? sliceResult
-      : (sliceResult?.gcode as ArrayBuffer);
+      : sliceResult?.gcode;
+    const gcodeBytes: ArrayBuffer = gcodeData instanceof Uint8Array ? gcodeData.buffer : gcodeData;
 
     // Clean up
     try { (slicer as any).dispose?.(); } catch {}
