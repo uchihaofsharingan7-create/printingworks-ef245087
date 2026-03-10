@@ -46,12 +46,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-<<<<<<< HEAD
-    "cura-wasm": "^1.2.1",
-=======
     "cura-wasm": "^1.5.2",
     "cura-wasm-definitions": "^1.5.1",
->>>>>>> f48c0fd6da2090b15e2e51b300216f2d3175318d
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
