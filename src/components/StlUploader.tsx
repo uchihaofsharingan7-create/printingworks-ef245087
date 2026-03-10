@@ -1,8 +1,9 @@
-import { useCallback, useState, useEffect } from 'react'; // Added useEffect
-import { Upload, FileBox, X, Loader2 } from 'lucide-react'; // Added Loader2
+import { useCallback, useState, useEffect } from 'react';
+import { Upload, FileBox, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { parseSTL } from '@/lib/stl-parser'; // Keep for volume fallback
+import { parseSTL } from '@/lib/stl-parser';
 import { PrinterType, FilamentType, calculateCost, getSlicedWeight } from '@/lib/pricing';
+import { Progress } from '@/components/ui/progress';
 
 interface StlUploaderProps {
   printer: PrinterType | null;
@@ -13,9 +14,10 @@ interface StlUploaderProps {
 export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps) {
   const [dragOver, setDragOver] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [stats, setStats] = useState<{ volume: number; triangles: number; grams: number; time: number } | null>(null);
+  const [stats, setStats] = useState<{ volume: number; grams: number; time: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isSlicing, setIsSlicing] = useState(false); // New loading state
+  const [isSlicing, setIsSlicing] = useState(false);
+  const [sliceProgress, setSliceProgress] = useState(0);
 
   const processFile = useCallback(async (f: File) => {
     if (!f.name.toLowerCase().endsWith('.stl')) {
@@ -25,37 +27,45 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
     setError(null);
     setFile(f);
     setIsSlicing(true);
+    setSliceProgress(0);
 
     try {
       const buffer = await f.arrayBuffer();
-      
-      // 1. Get basic STL data (Volume/Triangles)
-      const { volume, triangleCount } = parseSTL(buffer);
+      const { volume } = parseSTL(buffer);
 
-      // 2. Run the REAL Slicer (CuraWASM)
-      // This is the function we fixed that calculates weight from E-values!
-      const actualGrams = await getSlicedWeight(f, printer || 'ender3pro');
+      const result = await getSlicedWeight(f, printer || 'ender3pro', (pct) => {
+        setSliceProgress(Math.round(pct * 100));
+      });
 
-      // 3. Fallback logic: If slicer returns 0, use volume estimate
-      const finalGrams = actualGrams > 0 ? actualGrams : (volume * 1.25 * 0.2); 
-      const time = 60; // We can refine time estimation later
+      // Fallback: if slicer returns 0g, estimate from volume
+      const finalGrams = result.grams > 0 ? result.grams : parseFloat((volume * 1.25 * 0.2).toFixed(1));
+      const finalTime = result.timeMinutes > 0 ? result.timeMinutes : Math.max(1, Math.round(finalGrams * 1.2));
 
-      setStats({ volume, triangles: triangleCount, grams: finalGrams, time });
-      onEstimate(time, finalGrams);
+      setStats({ volume, grams: finalGrams, time: finalTime });
+      onEstimate(finalTime, finalGrams);
     } catch (err) {
-      console.error("Slicing failed:", err);
+      console.error('Slicing failed:', err);
       setError('Could not process STL. Using fallback estimation.');
+      // Volume-based fallback
+      try {
+        const buffer = await f.arrayBuffer();
+        const { volume } = parseSTL(buffer);
+        const fallbackGrams = parseFloat((volume * 1.25 * 0.2).toFixed(1));
+        const fallbackTime = Math.max(1, Math.round(fallbackGrams * 1.2));
+        setStats({ volume, grams: fallbackGrams, time: fallbackTime });
+        onEstimate(fallbackTime, fallbackGrams);
+      } catch {}
     } finally {
       setIsSlicing(false);
+      setSliceProgress(100);
     }
   }, [printer, filament, onEstimate]);
 
-  // Handle printer/filament changes while a file is already uploaded
   useEffect(() => {
     if (file && printer && filament) {
       processFile(file);
     }
-  }, [printer, filament]); // Re-run when selections change
+  }, [printer, filament]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -73,6 +83,7 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
     setFile(null);
     setStats(null);
     setError(null);
+    setSliceProgress(0);
     onEstimate(0, 0);
   };
 
@@ -114,7 +125,7 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
               <p className="text-xs text-muted-foreground">
-                {isSlicing ? "Analyzing G-Code..." : `${(file.size / 1024).toFixed(1)} KB`}
+                {isSlicing ? `Slicing... ${sliceProgress}%` : `${(file.size / 1024).toFixed(1)} KB`}
               </p>
             </div>
             <button onClick={clear} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -122,7 +133,13 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
             </button>
           </div>
 
-          {stats && (
+          {isSlicing && (
+            <div className="mt-3">
+              <Progress value={sliceProgress} className="h-2" />
+            </div>
+          )}
+
+          {stats && !isSlicing && (
             <div className="mt-3 grid grid-cols-3 gap-2">
               <div className="rounded-md bg-secondary p-2 text-center">
                 <p className="text-[10px] text-muted-foreground">Volume</p>
@@ -130,13 +147,13 @@ export function StlUploader({ printer, filament, onEstimate }: StlUploaderProps)
               </div>
               <div className="rounded-md bg-secondary p-2 text-center">
                 <p className="text-[10px] text-muted-foreground">Est. Weight</p>
-                <p className="text-xs font-mono font-semibold text-foreground">
-                  {isSlicing ? "..." : `${stats.grams.toFixed(1)} g`}
-                </p>
+                <p className="text-xs font-mono font-semibold text-foreground">{stats.grams.toFixed(1)} g</p>
               </div>
               <div className="rounded-md bg-secondary p-2 text-center">
-                <p className="text-[10px] text-muted-foreground">Triangles</p>
-                <p className="text-xs font-mono font-semibold text-foreground">{stats.triangles.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground">Est. Time</p>
+                <p className="text-xs font-mono font-semibold text-foreground">
+                  {stats.time >= 60 ? `${Math.floor(stats.time / 60)}h ${stats.time % 60}m` : `${stats.time} min`}
+                </p>
               </div>
             </div>
           )}
