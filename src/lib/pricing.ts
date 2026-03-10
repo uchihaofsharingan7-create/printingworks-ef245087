@@ -9,6 +9,11 @@ export const PRINTERS: Record<PrinterType, { name: string, description: string }
   adventure5m: { name: 'Adventure 5M Pro', description: 'High-speed · 220x220x220mm' },
 };
 
+export const FILAMENTS: Record<FilamentType, { name: string; color: string }> = {
+  pla: { name: 'PLA', color: 'Standard · Matte' },
+  petg: { name: 'PETG', color: 'Durable · Glossy' },
+};
+
 const FILAMENT_GRAM_COST = { pla: 0.25, petg: 0.35 };
 const PRINTER_FEES = { ender3pro: 1, adventure4: 2, adventure5m: 3 };
 const BASE_COST = 2;
